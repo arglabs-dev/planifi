@@ -23,7 +23,30 @@ flowchart LR
     B -->|ETL| DW[(Data Warehouse)]
 ```
 
-## 3. Flujos clave (ejemplo createExpense)
+## 3. Tecnologías por componente
+
+- **MCP Server**: Node.js 20 + TypeScript + OpenAI MCP SDK; validación con Zod,
+  clientes HTTP con undici e imagen distroless.
+- **Gateway / Edge**: Kong Gateway o Nginx Ingress con rate limiting, auth de
+  API keys, TLS y mTLS opcional hacia backend.
+- **Backend**: Java 21 + Spring Boot 3.x con Spring MVC, Spring Data JPA,
+  Spring Security, Resilience4j y Micrometer.
+- **Base de datos transaccional**: PostgreSQL 16 para integridad ACID con
+  particiones por tenant opcional.
+- **Almacenamiento de adjuntos**: S3 compatible (S3, MinIO) con buckets
+  privados, KMS, expiración y antivirus.
+- **Almacenamiento documental**: MongoDB 7 (opcional) para adjuntos
+  enriquecidos, auditoría y búsquedas flexibles.
+- **Data Warehouse**: Snowflake o BigQuery para modelos analíticos y reportes
+  con ingestión programada.
+- **Mensajería / Outbox**: Kafka o RabbitMQ para eventos de dominio y
+  proyección a DW con idempotencia.
+- **Observabilidad**: OpenTelemetry, Prometheus, Grafana y Loki para trazas,
+  métricas y logs estructurados.
+- **CI/CD**: GitHub Actions o GitLab CI con Trivy, Snyk/Dependabot para lint,
+  test, SAST, escaneo de contenedores y firma de imágenes.
+
+## 4. Flujos clave (ejemplo createExpense)
 
 ```mermaid
 sequenceDiagram
@@ -45,8 +68,29 @@ sequenceDiagram
     G-->>U: Confirma registro y totales
 ```
 
-## 4. Backend Spring Boot
+## 5. MCP Server
 
+- **Lenguaje**: Node.js 20 con TypeScript y **OpenAI MCP SDK**.
+- **Acciones**: `createExpense`, `listExpenses`, `createTag`, `auth/api-key`.
+- **Autenticación**: API key dedicada (`X-MCP-API-Key`) con rotación y scopes
+  mínimos; mTLS opcional hacia el backend.
+- **Validación**: esquemas Zod reutilizados desde contratos compartidos; todas
+  las llamadas al backend incluyen **Idempotency-Key** y **correlation-id**.
+- **Transporte**: HTTP/JSON sobre HTTPS; timeouts y retries exponenciales; uso
+  de `Accept: application/json` y control de versiones en headers.
+- **Observabilidad**: instrumentación OpenTelemetry (trazas + métricas de
+  latencia y tasa de errores), logs JSON con `action` y `traceId`.
+- **Empaquetado**: imagen distroless, usuario no-root, variables inyectadas por
+  pipeline; despliegue como servicio stateless escalable horizontalmente.
+- **Testing**: contrato MCP ↔ backend mediante mocks de API y suites de acciones
+  conversacionales.
+
+## 6. Backend Spring Boot
+
+- **Tecnologías núcleo**: Java 21, Spring Boot 3.x, Spring MVC/WebFlux (según
+  necesidad), Spring Data JPA con PostgreSQL, Spring Data Mongo para adjuntos,
+  Flyway/Liquibase para migraciones, Resilience4j para resiliencia, Micrometer
+  para métricas.
 - **Capas**: controller (DTO + validación), service (dominio e idempotencia),
   domain (entidades), repository (JPA + Mongo template si aplica).
 - **Persistencia**: PostgreSQL para operaciones críticas; MongoDB opcional para
@@ -59,7 +103,7 @@ sequenceDiagram
   mutables. Claves se guardan en tabla `idempotency_keys` con `status`, `hash`
   y `response_body` para devolver resultados repetibles.
 
-## 5. Seguridad (obligatorio)
+## 7. Seguridad (obligatorio)
 
 - **Authn/Authz**: JWT (usuarios finales) con scopes; API keys firmadas y
   rotables para el **MCP Server**. Roles mínimos: `mcp`, `user`, `admin`.
@@ -86,7 +130,7 @@ sequenceDiagram
   (estándares de API) con pruebas de abuso, rotación automática y límites por
   tenant.
 
-## 6. SDLC y versionado
+## 8. SDLC y versionado
 
 - **Branching**: trunk-based con ramas cortas `feature/PLA-XX`. Revisiones en
   PR obligatorias.
@@ -94,7 +138,7 @@ sequenceDiagram
   tags `v1`. Releases etiquetados (`v0.1.0`, `v0.2.0`) y changelog.
 - **Releases**: cortes semanales; hotfix vía `hotfix/*` con retroport a main.
 
-## 7. CI/CD y calidad
+## 9. CI/CD y calidad
 
 - **Pipeline** (orden): lint (markdownlint, ktlint), tests unitarios, pruebas de
   contrato (OpenAPI + MCP schemas), integración, build container, SAST/dep
@@ -108,7 +152,7 @@ sequenceDiagram
   - E2E: flujos MCP conversacionales (createExpense, listExpenses, createTag,
     auth/api-key).
 
-## 8. Operación y observabilidad
+## 10. Operación y observabilidad
 
 - **Logs**: JSON estructurado con `correlation-id`, `user-id` (hash), `api-key`
   (tokenizada), nivel y latencia.
@@ -120,7 +164,7 @@ sequenceDiagram
   - Rotación de llaves: pasos para vault + despliegue coordinado.
   - Incidente de PII en logs: playbook de borrado y notificación.
 
-## 9. Patrones y decisiones
+## 11. Patrones y decisiones
 
 - **Patrones**: DDD-lite; ports & adapters para integraciones de almacenamiento
   y proveedores de IA; CQRS opcional en reportes; Outbox para eventos
@@ -129,7 +173,7 @@ sequenceDiagram
   autenticación con fecha y motivación. Referenciar a secciones de requisitos y
   a PLA-10/PLA-13 para trazabilidad.
 
-## 10. Estándares de API
+## 12. Estándares de API
 
 - **Idempotencia**: todas las operaciones POST/PUT/DELETE requieren
   Idempotency-Key y devuelven el mismo resultado ante reintentos.

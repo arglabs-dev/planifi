@@ -1,176 +1,198 @@
-# Planifi Agent Playbook
+# Planifi — AGENTS.md (Codex + Humans)
 
-Planifi documentation is a live specification; every edit must keep the MCP +
-Spring Boot stack coherent, auditable, and production-ready.
+> **Purpose:** persistent, repo-native instructions so Codex can ship production-ready changes safely and fast.
 
-## Table of contents
-1. [Mission & scope](#1-mission--scope)
-2. [Sources of truth](#2-sources-of-truth)
-3. [Toolchain & coordination](#3-toolchain--coordination)
-4. [Architecture alignment](#4-architecture-alignment)
-5. [Agent autonomy](#5-agent-autonomy)
-6. [Development best practices](#6-development-best-practices)
-7. [DevOps & operational guardrails](#7-devops--operational-guardrails)
-8. [CI/CD workflow](#8-cicd-workflow)
-9. [SDLC lifecycle](#9-sdlc-lifecycle)
-10. [Build, test, and dev commands](#10-build-test-and-dev-commands)
-11. [Coding style & naming](#11-coding-style--naming)
-12. [Testing guidelines](#12-testing-guidelines)
-13. [Commit & PR guidelines](#13-commit--pr-guidelines)
-14. [Quality gates & checklists](#14-quality-gates--checklists)
+## 0) TL;DR (do this every task)
+1) Read *this* file + any nearer `AGENTS.md` in subfolders (if present).
+2) Confirm scope via Linear issue `PLA-XX` and align with `ARCHITECTURE.md`.
+3) Work in a short-lived branch: `feature/PLA-XX-short-title`.
+4) Keep changes small, testable, and reviewable; prefer 1 PR per issue.
+5) Run the relevant checks locally/CI-equivalent before pushing.
+6) In PR description: summary + tests run + risk/rollout + links (Linear + docs sections).
 
-## 1. Mission & scope
-- Deliver end-to-end updates (docs, schemas, ADRs) without waiting for manual
-  approval unless a task explicitly restricts access.
-- Keep requirements, architecture, and operational notes synchronized so other
-  contributors can implement features safely.
-- Treat security, observability, and compliance guardrails as first-class
-  deliverables alongside content changes.
+---
 
-## 2. Sources of truth
-- `docs/1_requerimientos.md` and `docs/1_requirements.md` host the Spanish and
-  English requirements; always update both when scope changes.
-- `docs/2_arquitectura.md` plus `docs/ARCHITECTURE.md` record technical
-  decisions; cite the exact section (MCP Server, Backend Spring Boot,
-  Seguridad) when altering flows or components.
-- ADRs capture exceptions or new standards; reference them whenever you record
-  deviations or hard decisions.
+## 1) How Codex reads instructions (important)
+Codex loads `AGENTS.md` before doing work, and can layer instructions from global → repo → nested folders. Use this file for repo-wide standards; add nested `AGENTS.md` in `mcp/` or `backend/` if you need tighter rules per subproject.  
+- Global and per-project discovery/precedence is supported, including `AGENTS.override.md` (highest priority in a given directory scope).  
+- If you add nested files, keep them **short** and **specific** (commands, conventions, local gotchas).
 
-## 3. Toolchain & coordination
-- Develop inside Codex Web; document shell snippets exactly as they are run in
-  the Codex CLI.
-- Manage work in Linear; every branch, commit, and PR references the matching
-  `PLA-XX` issue and includes relevant notes or acceptance criteria.
-- GitHub is the canonical repo: trunk-based flow using `feature/PLA-XX`
-  branches, small PRs, and mandatory reviews.
-- Sync decisions through Linear comments and GitHub PR threads; mirror any
-  architecture/security outcome back into `docs/ARCHITECTURE.md`.
+---
 
-## 4. Architecture alignment
-- **MCP Server**: Node.js 20 + TypeScript + OpenAI MCP SDK, Zod validation,
-  OpenTelemetry instrumentation, `X-MCP-API-Key`, `Idempotency-Key`, and
-  `correlation-id` headers, stateless distroless images.
-- **Backend**: Java 21 + Spring Boot 3.x (controller/service/repository),
-  PostgreSQL 16, optional MongoDB 7, S3-compatible storage with antivirus/KMS,
-  Kafka/RabbitMQ outbox, Snowflake/BigQuery analytics.
-- **Security/Observability/CI**: JWT + API keys, TLS/mTLS, Prometheus +
-  Micrometer, Grafana/Loki, GitHub Actions with Trivy, Snyk, Dependabot,
-  Cosign.
-- Never introduce new tech or flows without first updating the architecture
-  docs and referencing the relevant section.
+## 2) Sources of truth (do not drift)
+**Primary:** `ARCHITECTURE.md` (end-to-end architecture + standards).  
+**Secondary:** requirements docs (`docs/1_requerimientos.md` and `docs/1_requirements.md`) and ADRs.
 
-## 5. Agent autonomy
-- Assume full permission to create branches, push commits, open PRs, and run
-  automation; pause only when a task flags restricted resources.
-- Run all lint/tests/builds locally before pushing; escalate commands only when
-  external credentials or network paths are absolutely required.
-- Keep changelogs, ADRs, and documentation synchronized with the code and
-  process changes you submit.
-- When uncertain, default to action: propose the change, explain assumptions in
-  the PR, and link to the relevant Linear issue and architecture sections.
+Rules:
+- If you change behavior/contract/security/ops, update docs in the same PR.
+- Never introduce new tech or major flows without updating architecture/ADRs first.
 
-## 6. Development best practices
-- Contract-first: update OpenAPI specs for Spring Boot endpoints and Zod
-  schemas for the MCP actions before prose or code; cross-link the change to
-  `docs/ARCHITECTURE.md` and ADRs if security or contracts shift.
-- Deliver incremental, high-signal edits: `npx markdownlint`, MCP tests (`npm
-  test`, `tsc --noEmit`), and Spring suites (`./mvnw test` or Gradle) must pass
-  locally ahead of any push.
-- Preserve telemetry hooks: document OpenTelemetry spans (MCP + backend),
-  Micrometer metrics, and correlation-id propagation across Kong/Nginx →
-  MCP → Spring → PostgreSQL/S3.
-- Describe failure modes, retries, and idempotency behavior next to each flow
-  so both MCP handlers and Spring controllers enforce the same responses and
-  outbox/idempotency storage.
+---
 
-## 7. DevOps & operational guardrails
-- Treat infrastructure changes as code: reference Terraform/Kubernetes modules
-  for the MCP service, Spring deployment, PostgreSQL, MongoDB, S3, and
-  Kafka/RabbitMQ whenever diagrams or docs evolve.
-- Enforce the baseline: JWT scopes, API keys, TLS/mTLS, distroless Node and
-  Java images, non-root execution, Dependabot/Snyk alerting, vault-managed
-  secrets; document mitigations for any exception.
-- Embed observability expectations: specify Prometheus metrics (Micrometer),
-  OpenTelemetry exporters (Node + Java), Grafana/Loki dashboards, and
-  Snowflake/BigQuery ingestion jobs for every change.
-- Keep runbooks adjacent to features, referencing concrete services (Spring
-  expense controller, MCP `createExpense`, PostgreSQL partitions), feature
-  flags, rollback commands, and on-call contacts.
+## 3) Project scope & architecture anchors (v0.1+)
+### 3.1 Components
+- **MCP Server**: Node.js 20 + TypeScript + OpenAI MCP SDK; Zod validation; HTTP client `undici`; distroless container; OpenTelemetry; stateless.  
+- **Backend**: Java 21 + Spring Boot 3.x (Spring MVC, Spring Data JPA, Spring Security, Resilience4j, Micrometer).  
+- **DB**: PostgreSQL 16 (ACID) with optional tenant partitioning; optional MongoDB 7 for enriched attachments/audit.
+- **Storage**: S3-compatible (S3/MinIO) with private buckets, KMS, expiration, antivirus.
+- **Edge/Gateway**: Kong or Nginx Ingress with rate limiting and API-key auth; TLS and optional mTLS.
+- **Observability**: OpenTelemetry + Prometheus + Grafana + Loki.
+- **CI/CD**: GitHub Actions with security scanning (Trivy, Snyk/Dependabot), signed images.
 
-## 8. CI/CD workflow
-- GitHub Actions reference order: markdownlint → Node.js 20 MCP lint/tests →
-  Java 21 Spring Boot unit/integration tests → OpenAPI/MCP contract checks →
-  container builds (MCP + backend) → Trivy/Snyk/Dependabot scans → Cosign
-  signing → staged deploys; record any skipped stage with rationale.
-- Document workflow YAML details: secrets (registry, Linear/GitHub tokens),
-  build matrices (Node 20.x, Temurin 21), cache paths (`~/.npm`, Maven/Gradle),
-  and manual approvals for production promotion.
-- Include pipeline evidence in every PR (link or summary), clarify which
-  environments are affected, and flag backports or feature flags when MCP
-  actions, Spring endpoints, or infra modules change.
-- Keep artifacts reproducible: cite container tags, SBOM outputs, git tags
-  (`v0.x.y`), and the Terraform/Kubernetes release notes in your updates.
+### 3.2 Non-negotiables (security/ops)
+- **Idempotency-Key** required on POST/PUT/DELETE; backend persists replayable responses in `idempotency_keys`.
+- **Correlation**: propagate `correlation-id` end-to-end; include `traceId` in error responses.
+- **Secrets**: never in repo; use a managed vault; injected via pipeline/env.
 
-## 9. SDLC lifecycle
-- **Discover & define**: capture the user problem, affected MCP/back-end
-  touchpoints, and acceptance criteria in Linear (`PLA-XX`) with links to the
-  relevant requirement sections.
-- **Design & align**: update architecture docs/ADRs, validate OpenAPI + Zod
-  schemas, and confirm storage/security implications before implementation.
-- **Build & verify**: work in `feature/PLA-XX`, run Node + Java tests, ensure
-  telemetry/idempotency hooks are implemented exactly as documented, and keep
-  docs in lockstep.
-- **Release & operate**: merge via reviewed PRs, confirm the CI/CD pipeline,
-  tag MCP/back-end releases, update runbooks/alerts, and monitor
-  Prometheus/Grafana/Loki plus Snowflake KPIs; roll back via Kubernetes or
-  feature flags if SLOs regress.
-- **Reflect & improve**: log retrospectives in Linear, update requirements and
-  architecture docs with lessons learned, and close any observability,
-  security, or CI/CD gaps discovered in production.
+---
 
-## 10. Build, test, and dev commands
-- `npx markdownlint "docs/**/*.md"` validates formatting and heading order.
-- `glow docs/<file>.md` previews Markdown (or use your preferred renderer).
-- `rg <keyword> docs/` verifies terminology alignment (e.g., “tags” vs
-  “categorías”).
-- MCP: `npm install`, `npm test`, `tsc --noEmit`.
-- Backend: `./mvnw test` (or Gradle), `./mvnw spring-boot:run` only when you
-  need to verify flows explicitly documented.
+## 4) Workflow (Linear → GitHub) and how to behave as an agent
+### 4.1 Branching & PRs
+- Trunk-based: short branches `feature/PLA-XX-*` and small PRs.
+- 1 issue → 1 PR unless the issue explicitly bundles multiple features.
+- If a follow-up is needed, update the **existing PR** (don’t create PR sprawl).
 
-## 11. Coding style & naming
-- Use Markdown with ATX (`#`) headings, 80–100 character lines, and
-  sentence-case titles unless a proper noun requires capitalization.
-- Prefer concise paragraphs and bullet lists; ordered lists for sequential
-  flows, unordered for enumerations.
-- Bold the first mention of entities (tags, data fields, MCP endpoints) and
-  reuse the exact casing afterward to simplify search.
+### 4.2 Binary files policy (Codex Cloud reality)
+- **Do not** introduce generated/built artifacts (e.g., `target/`, `.jar`, `.class`, `node_modules/`) into git.
+- Prefer storing assets/attachments in S3 (per architecture).
+- If Codex is creating PRs via Codex Cloud: avoid adding/modifying binary files in PRs. If absolutely required, describe the steps and leave them for a local/CI commit.
 
-## 12. Testing guidelines
-- Treat linting as the minimum bar; include command output in PRs when it
-  informs reviewers.
-- Provide fenced code blocks with language hints (` ```json `, ` ```http `) for
-  pseudo-APIs, schemas, or payloads so renderers and linters apply the right
-  syntax highlighting.
-- Cross-link related sections using relative links (e.g., `[Ver
-  requisitos](./docs/1_requirements.md)`) and click-test them during previews.
+### 4.3 Definition of Done (DoD)
+A task is “done” only if:
+- Behavior matches requirements + architecture.
+- Contracts updated (OpenAPI + MCP/Zod) when behavior changes.
+- Tests added/updated and passing.
+- Logs/metrics/traces remain correct; correlation/idempotency preserved.
+- No secrets added; scanners remain clean; build is reproducible.
+- Docs/ADRs updated when applicable.
 
-## 13. Commit & PR guidelines
-- Use short, imperative commit subjects (e.g., `Add MCP section to
-  architecture`), referencing the `PLA-XX` issue when relevant.
-- Group related documentation changes together; avoid mixing requirement edits
-  with architecture updates unless they are inseparable.
-- PRs must include: summary, touched files, pipeline evidence, pending
-  follow-ups/ADRs, and screenshots or preview output when formatting is
-  non-trivial.
-- Reference issue IDs or conversations in PR descriptions so reviewers can
-  trace the intent quickly.
+---
 
-## 14. Quality gates & checklists
-- ✅ `npx markdownlint "docs/**/*.md"` clean
-- ✅ MCP: `npm test`, `tsc --noEmit`
-- ✅ Spring Boot: `./mvnw test` (or Gradle equivalent)
-- ✅ OpenAPI + Zod schemas updated and cross-linked
-- ✅ Telemetry hooks (OpenTelemetry spans, Micrometer metrics) documented
-- ✅ Security posture confirmed (JWT scopes, API keys, TLS/mTLS, distroless)
-- ✅ PR references Linear issue, includes pipeline evidence, and calls out
-  ADR/runbook updates when needed
+## 5) Contract-first rules (API + MCP)
+### 5.1 OpenAPI (backend)
+- OpenAPI is the **source of truth** for REST `/api/v1`.
+- Any endpoint change must update: OpenAPI → DTO validation → controller/service/repository.
+- Keep error format consistent: use ProblemDetails and return `{"errorCode","message","traceId"}` equivalents.
+
+### 5.2 MCP (Node)
+- Every MCP action has:
+  - Zod input schema (strict; no unknowns unless explicitly allowed).
+  - deterministic output schema (stable fields; versioned changes).
+  - timeouts + retries (bounded) and idempotency/correlation headers to backend.
+- Always send:
+  - `X-MCP-API-Key` (MCP→backend auth)
+  - `Idempotency-Key` (mutations)
+  - `correlation-id` (end-to-end tracing)
+
+---
+
+## 6) Implementation guidelines — MCP Server (Node.js 20 / TypeScript)
+### 6.1 Structure expectations
+- Keep handlers thin; move logic into services.
+- No implicit globals; config via env; validate config at startup (Zod).
+- Prefer `undici` for HTTP calls; enforce timeouts and retry policy (exponential backoff, cap).
+
+### 6.2 Observability
+- OpenTelemetry spans around:
+  - MCP action entry/exit
+  - outbound backend HTTP call
+  - storage operations if any (pre-signed flows)
+- Logs are JSON, include: `action`, `correlation-id`, `traceId` (if available), `status`, `latency_ms`.
+
+### 6.3 Security
+- Never log API keys, JWTs, raw PII, or raw attachments.
+- Treat any user-provided string as untrusted; avoid prompt-injection by sanitizing tool inputs where applicable.
+
+---
+
+## 7) Implementation guidelines — Backend (Java 21 / Spring Boot 3.x)
+### 7.1 Layering & domain
+- Controllers: HTTP + DTO validation only.
+- Services: domain logic, idempotency, transactions, orchestration.
+- Repositories: persistence only.
+
+### 7.2 Idempotency (required)
+- Mutations require `Idempotency-Key`.
+- Persist:
+  - request hash (to detect key reuse with different payload)
+  - status
+  - response body (for replay)
+- Ensure idempotency is enforced at service boundary (not only controller).
+
+### 7.3 Errors & responses
+- Use centralized exception mapping.
+- Return consistent error payload with `traceId`.
+- Map upstream failures (storage/db/outbox) to stable error codes (avoid leaking internals).
+
+### 7.4 Resilience
+- Use Resilience4j for:
+  - timeouts
+  - circuit breakers
+  - retries (only for safe operations / idempotent semantics)
+- Bound retries (no infinite retry loops).
+
+---
+
+## 8) Testing & quality gates
+### 8.1 Minimum tests
+- Unit tests for service logic (including idempotency behavior).
+- Integration tests for repositories + REST slices.
+- Contract tests: OpenAPI + MCP schemas stay in sync.
+- E2E: MCP conversational flows (createExpense/listExpenses/createTag/auth/api-key).
+
+### 8.2 Commands (choose what exists in repo)
+Docs lint:
+- `npx markdownlint "docs/**/*.md"`
+
+MCP:
+- If lockfile present: `npm ci`
+- Otherwise: `npm install`
+- `npm test`
+- `npx tsc --noEmit`
+
+Backend:
+- `./mvnw test`
+- `./mvnw spring-boot:run` (only when explicitly needed to validate flows)
+
+Quality gates:
+- Coverage target: >= 80% where applicable.
+- No critical vulnerabilities; container scans pass.
+- Builds reproducible; images signed in CI when configured.
+
+---
+
+## 9) CI/CD & security automation guidance
+- Prefer GitHub Actions pipeline: lint → tests → contract checks → container builds → scans → signing → deploy staging → manual prod promotion.
+- If you run Codex in GitHub Actions (`openai/codex-action@v1`):
+  - Restrict who can trigger workflows.
+  - Sanitize any prompt inputs coming from PR bodies/issues (prompt-injection risk).
+  - Use the narrowest sandbox that still works (start with `workspace-write`).
+
+---
+
+## 10) Git hygiene, docs style, and repository cleanliness
+### 10.1 Commits
+- Prefer **small, atomic commits** with imperative subjects.
+- Include the Linear id in the subject or body: `PLA-XX`.
+- Avoid `WIP`/`temp` commits in shared branches; squash if needed.
+
+### 10.2 .gitignore (keep binaries out of PRs)
+- Ensure build outputs are ignored (examples): `target/`, `*.class`, `*.jar`, `node_modules/`, `dist/`.
+- If a task accidentally generates artifacts, remove them from git (`git rm --cached …`) and extend `.gitignore`.
+
+### 10.3 Documentation style
+- Keep Markdown clean and lintable (`npx markdownlint "docs/**/*.md"`).
+- Use fenced blocks with language tags (`json`, `http`, `bash`) for payloads and commands.
+- When you change behavior or contracts, update docs/ADRs in the same PR and link sections explicitly.
+
+## 11) PR template (put this in the PR description)
+- **Linear:** PLA-XX
+- **Summary:** what changed and why
+- **Contracts:** OpenAPI updated? MCP/Zod updated?
+- **Tests:** commands run + results
+- **Risk:** edge cases + failure modes + rollback/feature flag
+- **Observability:** logs/metrics/traces impacted? new dashboards/runbooks?
+- **Security:** auth/scopes/headers reviewed? secrets handling confirmed?
+- **Docs/ADRs:** links to updated sections
+
+---

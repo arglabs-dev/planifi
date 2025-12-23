@@ -1,0 +1,13 @@
+# Java / Maven
+backend/target/
+backend/.idea/
+backend/.project
+backend/.classpath
+backend/.settings/
+# Evita subir binarios del wrapper
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Build
+*.log
+.DS_Store
+.idea/

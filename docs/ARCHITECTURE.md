@@ -181,3 +181,41 @@ sequenceDiagram
 - **Errores**: formato único con `traceId` y `errorCode`; códigos HTTP estándar.
 - **Contratos**: OpenAPI como fuente de verdad; generación de clientes; schemas
   MCP sincronizados con la API.
+
+## 13. Backend scaffold v0.1 (PLA-52)
+
+- **Capas**: `api` (controllers + DTO), `application` (servicios), `domain`
+  (entidades y reglas), `infrastructure` (persistencia JPA/Mongo y adaptadores).
+- **Dependencias base**: Spring Web, Validation, Security, Actuator, Data JPA,
+  Data Mongo, Flyway, PostgreSQL driver, Micrometer tracing (OTel bridge) y
+  SpringDoc (`/v3/api-docs` + Swagger UI).
+- **Seguridad**:
+  - API key por cabecera configurable (`X-API-Key` por defecto).
+  - Endpoints abiertos: `/actuator/health`, `/actuator/info`, `/swagger-ui`,
+    `/v3/api-docs/**`.
+  - Perfil `test` desactiva el filtro de API key para pruebas.
+- **Configuración por perfiles**:
+  - `dev`: Postgres + Mongo locales (compose) con Flyway y `ddl-auto: validate`.
+  - `test`: H2 en modo PostgreSQL con migraciones y seguridad deshabilitada.
+  - `prod`: variables obligatorias (`SPRING_DATASOURCE_*`, `PLANIFI_SECURITY_*`,
+    `SPRING_DATA_MONGODB_URI`), sin exponer detalles de salud.
+- **Migraciones iniciales** (Flyway):
+  - Tabla `expenses` (UUID, amount, occurred_on, description, created_at).
+  - Tabla `idempotency_keys` para reintentos seguros en operaciones mutables.
+- **OpenAPI**:
+  - Bean central `OpenAPI` con título y licencia; Swagger UI en
+    `/swagger-ui.html`.
+  - Endpoints placeholder `/api/v1/expenses` listan/crean gastos con DTOs
+    mínimos para alinearse al contrato MCP.
+- **Contenedores**:
+  - Dockerfile multi-stage (JDK para build, JRE para runtime).
+  - `docker-compose.yml` levanta API, Postgres 16 y Mongo 7 con variables
+    predeterminadas y puerto 8080 publicado.
+- **Calidad**:
+  - Smoke test con MockMvc valida `/actuator/health` y lista de gastos vacía.
+  - `./mvnw test` usa perfil `test`; `npx markdownlint \"docs/**/*.md\"` cubre
+    la documentación.
+- **Trazabilidad**:
+  - `docs/README.md` documenta setup local y variables.
+  - Referencia a PLA-51/PLA-52 para mantener coherencia con arquitectura
+    conversacional MCP-first.

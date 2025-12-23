@@ -1,0 +1,41 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/planifi
+      SPRING_DATASOURCE_USERNAME: planifi
+      SPRING_DATASOURCE_PASSWORD: planifi
+      PLANIFI_SECURITY_API_KEYS: dev-default-api-key
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/planifi
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - mongo
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: planifi
+      POSTGRES_USER: planifi
+      POSTGRES_PASSWORD: planifi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_DATABASE: planifi
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+volumes:
+  pgdata:
+  mongodata:

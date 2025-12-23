@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: planifi-backend
+  profiles:
+    active: dev
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: 1.0
+planifi:
+  security:
+    enabled: true
+    api-key-header: X-API-Key
+    static-keys:
+      - change-me-local
+springdoc:
+  api-docs:
+    path: /api/v1/openapi
+  swagger-ui:
+    path: /swagger-ui.html

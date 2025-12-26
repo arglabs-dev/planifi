@@ -5,12 +5,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Objects;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
@@ -49,7 +49,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 headerName,
                 apiKey,
-                Collections.emptyList()
+                AuthorityUtils.NO_AUTHORITIES
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);

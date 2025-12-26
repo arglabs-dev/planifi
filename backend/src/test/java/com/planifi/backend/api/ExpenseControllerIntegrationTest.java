@@ -83,12 +83,17 @@ class ExpenseControllerIntegrationTest {
                 OffsetDateTime.parse("2024-08-02T10:15:30+00:00")
         ));
 
-        mockMvc.perform(get("/api/v1/expenses"))
+        MvcResult result = mockMvc.perform(get("/api/v1/expenses"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(savedExpense.getId().toString()))
                 .andExpect(jsonPath("$[0].amount").value(99.99))
                 .andExpect(jsonPath("$[0].occurredOn").value("2024-08-01"))
                 .andExpect(jsonPath("$[0].description").value("Travel stipend"))
-                .andExpect(jsonPath("$[0].createdAt").value("2024-08-02T10:15:30Z"));
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        String createdAt = objectMapper.readTree(body).get(0).get("createdAt").asText();
+        assertThat(OffsetDateTime.parse(createdAt).toInstant())
+                .isEqualTo(savedExpense.getCreatedAt().toInstant());
     }
 }

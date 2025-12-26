@@ -27,8 +27,8 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(registry -> {
                     registry.requestMatchers("/actuator/health", "/actuator/info").permitAll();
-                    registry.requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
-                            "/swagger-ui.html").permitAll();
+                    registry.requestMatchers("/v3/api-docs/**", "/api/v1/openapi/**",
+                            "/swagger-ui/**", "/swagger-ui.html").permitAll();
 
                     if (securityProperties.isEnabled()) {
                         registry.requestMatchers(HttpMethod.POST, "/api/v1/expenses")

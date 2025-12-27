@@ -18,6 +18,8 @@
    `http://localhost:8080/swagger-ui.html`.
 3. Usa la API key `dev-default-api-key` (cabecera `X-API-Key`) para llamadas a
    `/api/v1/*`.
+4. El contrato OpenAPI vive en `docs/openapi/planifi-api-v1.yaml` y los
+   estándares de API en `docs/api-standards.md`.
 
 ## Desarrollo sin contenedores
 

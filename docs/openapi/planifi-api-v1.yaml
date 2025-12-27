@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: Planifi REST API
+  description: Contrato REST v1 para operaciones básicas de gastos.
+  version: v1
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+servers:
+  - url: /api/v1
+    description: Base path para la API pública v1
+paths:
+  /expenses:
+    get:
+      summary: Listar gastos
+      operationId: listExpenses
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Lista de gastos
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      summary: Crear gasto
+      operationId: createExpense
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+      responses:
+        "201":
+          description: Gasto creado
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    CreateExpenseRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+        - occurredOn
+        - description
+      properties:
+        amount:
+          type: number
+          format: decimal
+          example: 24.99
+        occurredOn:
+          type: string
+          format: date
+          example: "2025-01-15"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Taxi al aeropuerto"
+    Expense:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - amount
+        - occurredOn
+        - description
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        occurredOn:
+          type: string
+          format: date
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - errorCode
+        - message
+        - traceId
+      properties:
+        errorCode:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "amount must be greater than 0"
+        traceId:
+          type: string
+          example: "9f2c3e3a3cdb4a2e"
+  responses:
+    BadRequestError:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: API key inválida o ausente
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ConflictError:
+      description: Conflicto por reutilización de Idempotency-Key con payload distinto
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Error interno
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

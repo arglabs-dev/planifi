@@ -152,24 +152,44 @@ components:
   responses:
     BadRequestError:
       description: Solicitud inválida
+      headers:
+        correlation-id:
+          description: ID de correlación propagado en toda la petición
+          schema:
+            type: string
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     UnauthorizedError:
       description: API key inválida o ausente
+      headers:
+        correlation-id:
+          description: ID de correlación propagado en toda la petición
+          schema:
+            type: string
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     ConflictError:
       description: Conflicto por reutilización de Idempotency-Key con payload distinto
+      headers:
+        correlation-id:
+          description: ID de correlación propagado en toda la petición
+          schema:
+            type: string
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     InternalError:
       description: Error interno
+      headers:
+        correlation-id:
+          description: ID de correlación propagado en toda la petición
+          schema:
+            type: string
       content:
         application/json:
           schema:

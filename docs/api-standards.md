@@ -23,8 +23,10 @@ Son la referencia para nuevas rutas y para contratos OpenAPI.
 
 ## Autenticación
 
-- Todas las rutas `/api/v1/**` requieren API key.
-- Header por defecto: `X-API-Key`.
+- Todas las rutas `/api/v1/**` requieren autenticación.
+- MCP se autentica con API key en la cabecera `X-MCP-API-Key`.
+- Las rutas `/api/v1/auth/**` son públicas para registro/login.
+- Las rutas `/api/v1/api-keys/**` requieren JWT (`Authorization: Bearer ...`).
 - Las rutas abiertas se limitan a `/swagger-ui.html` y `/v3/api-docs/**`.
 
 ## Idempotencia

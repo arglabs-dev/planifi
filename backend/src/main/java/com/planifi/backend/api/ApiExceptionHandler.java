@@ -1,6 +1,8 @@
 package com.planifi.backend.api;
 
+import com.planifi.backend.application.ApiKeyNotFoundException;
 import com.planifi.backend.application.EmailAlreadyRegisteredException;
+import com.planifi.backend.application.IdempotencyKeyReuseException;
 import com.planifi.backend.application.InvalidCredentialsException;
 import com.planifi.backend.api.dto.ErrorResponse;
 import io.micrometer.tracing.Tracer;
@@ -31,6 +33,18 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse("AUTH_INVALID_CREDENTIALS", ex.getMessage(), traceId()));
+    }
+
+    @ExceptionHandler(ApiKeyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleApiKeyNotFound(ApiKeyNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("API_KEY_NOT_FOUND", ex.getMessage(), traceId()));
+    }
+
+    @ExceptionHandler(IdempotencyKeyReuseException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyReuse(IdempotencyKeyReuseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("IDEMPOTENCY_KEY_REUSED", ex.getMessage(), traceId()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

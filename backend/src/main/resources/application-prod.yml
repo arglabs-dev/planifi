@@ -23,7 +23,8 @@ management:
       show-details: never
 planifi:
   security:
-    api-key-header: ${PLANIFI_SECURITY_API_KEY_HEADER:X-API-Key}
+    api-key-header: ${PLANIFI_SECURITY_API_KEY_HEADER:X-MCP-API-Key}
+    api-key-prefix: ${PLANIFI_SECURITY_API_KEY_PREFIX:pln}
     static-keys: ${PLANIFI_SECURITY_API_KEYS:}
     jwt:
       issuer: ${PLANIFI_SECURITY_JWT_ISSUER:planifi-backend}

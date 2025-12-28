@@ -26,6 +26,7 @@ planifi:
   security:
     static-keys:
       - dev-default-api-key
+    api-key-prefix: pln
     jwt:
       issuer: planifi-backend
       secret: dev-only-jwt-secret-change-me-change-me

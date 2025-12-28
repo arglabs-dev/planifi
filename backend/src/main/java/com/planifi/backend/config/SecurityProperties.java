@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SecurityProperties {
 
     private boolean enabled = true;
-    private String apiKeyHeader = "X-API-Key";
+    private String apiKeyHeader = "X-MCP-API-Key";
+    private String apiKeyPrefix = "pln";
     private List<String> staticKeys = List.of();
 
     public boolean isEnabled() {
@@ -24,6 +25,14 @@ public class SecurityProperties {
 
     public void setApiKeyHeader(String apiKeyHeader) {
         this.apiKeyHeader = apiKeyHeader;
+    }
+
+    public String getApiKeyPrefix() {
+        return apiKeyPrefix;
+    }
+
+    public void setApiKeyPrefix(String apiKeyPrefix) {
+        this.apiKeyPrefix = apiKeyPrefix;
     }
 
     public List<String> getStaticKeys() {

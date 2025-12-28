@@ -21,6 +21,17 @@
 4. El contrato OpenAPI vive en `docs/openapi/planifi-api-v1.yaml` y los
    estándares de API en `docs/api-standards.md`.
 
+## Imagen Docker del backend
+
+Para construir la imagen localmente desde el `Dockerfile`:
+
+```sh
+docker build -t planifi-backend:dev ./backend
+```
+
+La imagen expone el puerto `8080` y lee la configuración desde variables de
+entorno (ver tabla de variables al final del documento).
+
 ## Desarrollo sin contenedores
 
 1. Levanta dependencias externas:

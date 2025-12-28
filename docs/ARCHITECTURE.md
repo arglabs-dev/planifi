@@ -198,7 +198,7 @@ sequenceDiagram
   Data Mongo, Flyway, PostgreSQL driver, Micrometer tracing (OTel bridge) y
   SpringDoc (`/v3/api-docs` + Swagger UI).
 - **Seguridad**:
-  - API key por cabecera configurable (`X-API-Key` por defecto).
+  - API key por cabecera configurable (`X-MCP-API-Key` por defecto).
   - Endpoints abiertos: `/actuator/health`, `/actuator/info`, `/swagger-ui`,
     `/v3/api-docs/**`.
   - Perfil `test` desactiva el filtro de API key para pruebas.

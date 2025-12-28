@@ -16,7 +16,7 @@
 
 2. La API expone `/actuator/health` y Swagger en
    `http://localhost:8080/swagger-ui.html`.
-3. Usa la API key `dev-default-api-key` (cabecera `X-API-Key`) para llamadas a
+3. Usa la API key `dev-default-api-key` (cabecera `X-MCP-API-Key`) para llamadas a
    `/api/v1/*`.
 4. El contrato OpenAPI vive en `docs/openapi/planifi-api-v1.yaml` y los
    estándares de API en `docs/api-standards.md`.
@@ -44,7 +44,8 @@ entorno (ver tabla de variables al final del documento).
    export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/planifi
    export SPRING_DATASOURCE_USERNAME=planifi
    export SPRING_DATASOURCE_PASSWORD=planifi
-   export PLANIFI_SECURITY_API_KEYS=dev-default-api-key
+   export PLANIFI_SECURITY_STATIC_KEYS=dev-default-api-key
+   export PLANIFI_SECURITY_API_KEY_HEADER=X-MCP-API-Key
    ```
 
 3. Compila y ejecuta:
@@ -84,8 +85,9 @@ entorno (ver tabla de variables al final del documento).
 
 | Variable | Descripción | Ejemplo |
 | --- | --- | --- |
-| `PLANIFI_SECURITY_API_KEYS` | API keys separadas por comas | `dev-default-key` |
-| `PLANIFI_SECURITY_API_KEY_HEADER` | Nombre de la cabecera para API key | `X-API-Key` |
+| `PLANIFI_SECURITY_STATIC_KEYS` | API keys separadas por comas | `dev-default-key` |
+| `PLANIFI_SECURITY_API_KEY_HEADER` | Nombre de la cabecera para API key | `X-MCP-API-Key` |
+| `PLANIFI_SECURITY_API_KEY_PREFIX` | Prefijo para API key generadas | `pln` |
 | `SPRING_DATASOURCE_URL` | JDBC URL de Postgres | `jdbc:postgresql://db:5432/app` |
 | `SPRING_DATASOURCE_USERNAME` | Usuario de base de datos | `planifi` |
 | `SPRING_DATASOURCE_PASSWORD` | Contraseña de base de datos | `planifi` |

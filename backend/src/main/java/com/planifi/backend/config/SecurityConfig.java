@@ -1,6 +1,7 @@
 package com.planifi.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planifi.backend.application.ApiKeyService;
 import com.planifi.backend.application.JwtService;
 import io.micrometer.tracing.Tracer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,12 +25,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            SecurityProperties securityProperties,
+                                           ApiKeyService apiKeyService,
                                            JwtService jwtService,
                                            ObjectMapper objectMapper,
                                            Tracer tracer)
             throws Exception {
         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter =
-                new ApiKeyAuthenticationFilter(securityProperties, objectMapper, tracer);
+                new ApiKeyAuthenticationFilter(securityProperties, apiKeyService, objectMapper, tracer);
         JwtAuthenticationFilter jwtAuthenticationFilter =
                 new JwtAuthenticationFilter(jwtService, objectMapper, tracer);
 
@@ -45,6 +47,7 @@ public class SecurityConfig {
                     if (securityProperties.isEnabled()) {
                         registry.requestMatchers(HttpMethod.POST, "/api/v1/expenses").authenticated();
                         registry.requestMatchers(HttpMethod.GET, "/api/v1/expenses").authenticated();
+                        registry.requestMatchers("/api/v1/api-keys/**").authenticated();
                         registry.anyRequest().denyAll();
                     } else {
                         registry.anyRequest().permitAll();

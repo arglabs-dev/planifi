@@ -56,6 +56,143 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "500":
           $ref: "#/components/responses/InternalError"
+  /api-keys:
+    post:
+      summary: Crear API key para MCP
+      operationId: createApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApiKeyRequest"
+      responses:
+        "201":
+          description: API key creada (secreto visible una sola vez)
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeySecret"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api-keys/{apiKeyId}/rotate:
+    post:
+      summary: Rotar API key
+      operationId: rotateApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: apiKeyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      responses:
+        "201":
+          description: API key rotada (nuevo secreto visible una sola vez)
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeySecret"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api-keys/{apiKeyId}/revoke:
+    post:
+      summary: Revocar API key
+      operationId: revokeApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: apiKeyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: API key revocada
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /expenses:
     get:
       summary: Listar gastos
@@ -133,7 +270,7 @@ components:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: X-API-Key
+      name: X-MCP-API-Key
     BearerAuth:
       type: http
       scheme: bearer
@@ -260,6 +397,37 @@ components:
         traceId:
           type: string
           example: "9f2c3e3a3cdb4a2e"
+    CreateApiKeyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "MCP principal"
+    ApiKeySecret:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - apiKey
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        apiKey:
+          type: string
+          description: Secreto completo, visible solo en creación/rotación.
+        createdAt:
+          type: string
+          format: date-time
   responses:
     BadRequestError:
       description: Solicitud inválida
@@ -296,6 +464,17 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     InternalError:
       description: Error interno
+      headers:
+        correlation-id:
+          description: ID de correlación propagado en toda la petición
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: Recurso no encontrado
       headers:
         correlation-id:
           description: ID de correlación propagado en toda la petición

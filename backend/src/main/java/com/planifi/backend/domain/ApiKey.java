@@ -67,4 +67,8 @@ public class ApiKey {
     public OffsetDateTime getRevokedAt() {
         return revokedAt;
     }
+
+    public void revoke(OffsetDateTime revokedAt) {
+        this.revokedAt = revokedAt;
+    }
 }

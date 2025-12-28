@@ -21,7 +21,8 @@ management:
 planifi:
   security:
     enabled: true
-    api-key-header: X-API-Key
+    api-key-header: X-MCP-API-Key
+    api-key-prefix: pln
     static-keys:
       - change-me-local
     jwt:

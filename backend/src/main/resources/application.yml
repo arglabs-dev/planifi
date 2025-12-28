@@ -24,6 +24,10 @@ planifi:
     api-key-header: X-API-Key
     static-keys:
       - change-me-local
+    jwt:
+      issuer: planifi-backend
+      secret: change-me-local-jwt-secret-change-me
+      expiration-minutes: 60
 springdoc:
   api-docs:
     path: /api/v1/openapi

@@ -103,6 +103,14 @@ sequenceDiagram
   mutables. Claves se guardan en tabla `idempotency_keys` con `status`, `hash`
   y `response_body` para devolver resultados repetibles.
 
+### 6.1 Montos y moneda
+- **Decisión v0.1**: los montos se almacenan como **decimal** en PostgreSQL
+  (`NUMERIC(14,2)`) y se representan en Java con `BigDecimal`.
+- **Motivo**: precisión decimal adecuada para MXN y reportes financieros; evita
+  errores de redondeo comunes en `float/double`.
+- **Moneda por defecto**: `MXN` en tablas de cuentas; cualquier soporte
+  multimoneda futuro deberá extender el modelo y los contratos.
+
 ## 7. Seguridad (obligatorio)
 
 - **Authn/Authz**: JWT (usuarios finales) con scopes; API keys firmadas y

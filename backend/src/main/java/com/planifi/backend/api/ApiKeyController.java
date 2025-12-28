@@ -38,7 +38,8 @@ public class ApiKeyController {
             @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody CreateApiKeyRequest request) {
         AuthenticatedUser authenticatedUser = requireUser(user);
-        ApiKeySecret secret = apiKeyService.createKey(authenticatedUser.userId(), request.name());
+        ApiKeySecret secret = apiKeyService.createKey(authenticatedUser.userId(), request.name(),
+                idempotencyKey);
         return toResponse(secret);
     }
 
@@ -49,7 +50,8 @@ public class ApiKeyController {
             @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @PathVariable UUID apiKeyId) {
         AuthenticatedUser authenticatedUser = requireUser(user);
-        ApiKeySecret secret = apiKeyService.rotateKey(authenticatedUser.userId(), apiKeyId);
+        ApiKeySecret secret = apiKeyService.rotateKey(authenticatedUser.userId(), apiKeyId,
+                idempotencyKey);
         return toResponse(secret);
     }
 
@@ -60,7 +62,7 @@ public class ApiKeyController {
             @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @PathVariable UUID apiKeyId) {
         AuthenticatedUser authenticatedUser = requireUser(user);
-        apiKeyService.revokeKey(authenticatedUser.userId(), apiKeyId);
+        apiKeyService.revokeKey(authenticatedUser.userId(), apiKeyId, idempotencyKey);
     }
 
     private ApiKeySecretResponse toResponse(ApiKeySecret secret) {

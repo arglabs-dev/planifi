@@ -20,7 +20,7 @@ public class Transaction {
     @Column(nullable = false, name = "account_id")
     private UUID accountId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal amount;
 
     @Column(nullable = false, name = "occurred_on")

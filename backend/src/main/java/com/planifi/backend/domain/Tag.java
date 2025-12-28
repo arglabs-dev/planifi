@@ -18,7 +18,7 @@ public class Tag {
     @Column(nullable = false, name = "user_id")
     private UUID userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 80)
     private String name;
 
     @Column(nullable = false, name = "created_at")

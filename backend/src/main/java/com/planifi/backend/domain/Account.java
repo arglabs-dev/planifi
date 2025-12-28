@@ -18,10 +18,10 @@ public class Account {
     @Column(nullable = false, name = "user_id")
     private UUID userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 3)
     private String currency;
 
     @Column(nullable = false, name = "created_at")

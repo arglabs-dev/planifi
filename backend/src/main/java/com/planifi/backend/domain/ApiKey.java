@@ -18,7 +18,7 @@ public class ApiKey {
     @Column(nullable = false, name = "user_id")
     private UUID userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(nullable = false, name = "key_hash", unique = true)

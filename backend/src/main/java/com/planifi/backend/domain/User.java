@@ -18,6 +18,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false, name = "password_hash")
+    private String passwordHash;
+
     @Column(name = "full_name")
     private String fullName;
 
@@ -28,9 +31,10 @@ public class User {
         // JPA only
     }
 
-    public User(UUID id, String email, String fullName, OffsetDateTime createdAt) {
+    public User(UUID id, String email, String passwordHash, String fullName, OffsetDateTime createdAt) {
         this.id = id;
         this.email = email;
+        this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.createdAt = createdAt;
     }
@@ -41,6 +45,10 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
     public String getFullName() {

@@ -26,3 +26,7 @@ planifi:
   security:
     static-keys:
       - dev-default-api-key
+    jwt:
+      issuer: planifi-backend
+      secret: dev-only-jwt-secret-change-me-change-me
+      expiration-minutes: 60

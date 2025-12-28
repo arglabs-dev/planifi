@@ -25,3 +25,7 @@ planifi:
   security:
     api-key-header: ${PLANIFI_SECURITY_API_KEY_HEADER:X-API-Key}
     static-keys: ${PLANIFI_SECURITY_API_KEYS:}
+    jwt:
+      issuer: ${PLANIFI_SECURITY_JWT_ISSUER:planifi-backend}
+      secret: ${PLANIFI_SECURITY_JWT_SECRET}
+      expiration-minutes: ${PLANIFI_SECURITY_JWT_EXPIRATION_MINUTES:60}

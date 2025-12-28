@@ -10,12 +10,59 @@ servers:
   - url: /api/v1
     description: Base path para la API pública v1
 paths:
+  /auth/register:
+    post:
+      summary: Registrar usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserRequest"
+      responses:
+        "201":
+          description: Usuario registrado y token emitido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/login:
+    post:
+      summary: Autenticar usuario
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Token JWT válido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /expenses:
     get:
       summary: Listar gastos
       operationId: listExpenses
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Lista de gastos
@@ -39,6 +86,7 @@ paths:
       operationId: createExpense
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       parameters:
         - name: Idempotency-Key
           in: header
@@ -86,7 +134,70 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
+    RegisterUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@planifi.app"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        fullName:
+          type: string
+          maxLength: 255
+          example: "María López"
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+    AuthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - email
+        - token
+        - tokenType
+        - expiresAt
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        token:
+          type: string
+        tokenType:
+          type: string
+          example: "Bearer"
+        expiresAt:
+          type: string
+          format: date-time
     CreateExpenseRequest:
       type: object
       additionalProperties: false
@@ -162,7 +273,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     UnauthorizedError:
-      description: API key inválida o ausente
+      description: Credenciales inválidas o ausentes
       headers:
         correlation-id:
           description: ID de correlación propagado en toda la petición

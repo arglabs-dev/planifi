@@ -139,8 +139,11 @@ public class TransactionService {
             if (!stored.getRequestHash().equals(requestHash)) {
                 throw new IdempotencyKeyReuseException(idempotencyKey);
             }
-            if (stored.getResponseBody() == null) {
+            if (responseType == Void.class) {
                 return null;
+            }
+            if (stored.getResponseBody() == null) {
+                throw new IllegalStateException("Missing idempotent response body");
             }
             try {
                 return objectMapper.readValue(stored.getResponseBody(), responseType);

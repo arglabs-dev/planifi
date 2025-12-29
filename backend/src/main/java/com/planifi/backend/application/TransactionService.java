@@ -30,6 +30,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,36 +78,33 @@ public class TransactionService {
         if (transactions.isEmpty()) {
             return List.of();
         }
-        List<UUID> transactionIds = transactions.stream()
-                .map(Transaction::getId)
-                .toList();
-        List<TransactionTag> mappings = transactionTagRepository
-                .findByIdTransactionIdIn(transactionIds);
-        Set<UUID> tagIds = mappings.stream()
-                .map(mapping -> mapping.getId().getTagId())
-                .collect(Collectors.toSet());
-        Map<UUID, Tag> tagById = tagRepository.findAllById(tagIds).stream()
-                .collect(Collectors.toMap(Tag::getId, tag -> tag));
-        Map<UUID, List<Tag>> tagsByTransactionId = new HashMap<>();
-        for (TransactionTag mapping : mappings) {
-            Tag tag = tagById.get(mapping.getId().getTagId());
-            if (tag == null) {
-                continue;
-            }
-            tagsByTransactionId
-                    .computeIfAbsent(mapping.getId().getTransactionId(), ignored -> new ArrayList<>())
-                    .add(tag);
-        }
-        return transactions.stream()
-                .map(transaction -> {
-                    List<Tag> tags = tagsByTransactionId
-                            .getOrDefault(transaction.getId(), List.of())
-                            .stream()
-                            .sorted(Comparator.comparing(Tag::getName))
-                            .toList();
-                    return new TransactionResult(transaction, tags);
-                })
-                .toList();
+        return attachTags(transactions);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionPageResult listTransactions(UUID userId,
+                                                  UUID accountId,
+                                                  LocalDate from,
+                                                  LocalDate to,
+                                                  int page,
+                                                  int size) {
+        ensureAccountExists(userId, accountId);
+        validateDateRange(from, to);
+        PageRequest pageRequest = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("occurredOn"), Sort.Order.desc("createdAt"))
+        );
+        Page<Transaction> transactions = transactionRepository
+                .findByAccountIdAndOccurredOnBetween(accountId, from, to, pageRequest);
+        List<TransactionResult> results = attachTags(transactions.getContent());
+        return new TransactionPageResult(
+                results,
+                transactions.getNumber(),
+                transactions.getSize(),
+                transactions.getTotalElements(),
+                transactions.getTotalPages()
+        );
     }
 
     @Transactional
@@ -173,6 +173,48 @@ public class TransactionService {
             unique.putIfAbsent(key, tag);
         }
         return List.copyOf(unique.values());
+    }
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new InvalidDateRangeException(from, to);
+        }
+    }
+
+    private List<TransactionResult> attachTags(List<Transaction> transactions) {
+        if (transactions.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> transactionIds = transactions.stream()
+                .map(Transaction::getId)
+                .toList();
+        List<TransactionTag> mappings = transactionTagRepository
+                .findByIdTransactionIdIn(transactionIds);
+        Set<UUID> tagIds = mappings.stream()
+                .map(mapping -> mapping.getId().getTagId())
+                .collect(Collectors.toSet());
+        Map<UUID, Tag> tagById = tagRepository.findAllById(tagIds).stream()
+                .collect(Collectors.toMap(Tag::getId, tag -> tag));
+        Map<UUID, List<Tag>> tagsByTransactionId = new HashMap<>();
+        for (TransactionTag mapping : mappings) {
+            Tag tag = tagById.get(mapping.getId().getTagId());
+            if (tag == null) {
+                continue;
+            }
+            tagsByTransactionId
+                    .computeIfAbsent(mapping.getId().getTransactionId(), ignored -> new ArrayList<>())
+                    .add(tag);
+        }
+        return transactions.stream()
+                .map(transaction -> {
+                    List<Tag> tags = tagsByTransactionId
+                            .getOrDefault(transaction.getId(), List.of())
+                            .stream()
+                            .sorted(Comparator.comparing(Tag::getName))
+                            .toList();
+                    return new TransactionResult(transaction, tags);
+                })
+                .toList();
     }
 
     private String hashTagsComponent(List<String> tags) {

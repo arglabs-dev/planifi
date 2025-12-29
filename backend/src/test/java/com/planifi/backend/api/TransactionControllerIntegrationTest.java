@@ -2,6 +2,7 @@ package com.planifi.backend.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,7 +14,10 @@ import com.planifi.backend.config.AuthenticatedUser;
 import com.planifi.backend.domain.Account;
 import com.planifi.backend.domain.AccountType;
 import com.planifi.backend.domain.IdempotencyKey;
+import com.planifi.backend.domain.Tag;
 import com.planifi.backend.domain.Transaction;
+import com.planifi.backend.domain.TransactionTag;
+import com.planifi.backend.domain.TransactionTagId;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
 import com.planifi.backend.infrastructure.persistence.IdempotencyKeyRepository;
@@ -249,5 +253,85 @@ class TransactionControllerIntegrationTest {
 
         assertThat(tagRepository.count()).isEqualTo(1);
         assertThat(transactionTagRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void listTransactionsByAccountAndDateRangeReturnsPagedResults() throws Exception {
+        Account otherAccount = accountRepository.save(new Account(
+                UUID.randomUUID(),
+                userId,
+                "Cuenta secundaria",
+                AccountType.CASH,
+                "MXN",
+                OffsetDateTime.now(),
+                null
+        ));
+        Tag groceries = tagRepository.save(new Tag(
+                UUID.randomUUID(),
+                userId,
+                "Groceries",
+                OffsetDateTime.now()
+        ));
+        Tag transport = tagRepository.save(new Tag(
+                UUID.randomUUID(),
+                userId,
+                "Transport",
+                OffsetDateTime.now()
+        ));
+
+        Transaction first = transactionRepository.save(new Transaction(
+                UUID.randomUUID(),
+                account.getId(),
+                new BigDecimal("25.00"),
+                LocalDate.of(2024, 12, 5),
+                "Taxi",
+                OffsetDateTime.now().minusDays(2)
+        ));
+        Transaction second = transactionRepository.save(new Transaction(
+                UUID.randomUUID(),
+                account.getId(),
+                new BigDecimal("50.00"),
+                LocalDate.of(2024, 12, 20),
+                "Despensa",
+                OffsetDateTime.now().minusDays(1)
+        ));
+        Transaction third = transactionRepository.save(new Transaction(
+                UUID.randomUUID(),
+                account.getId(),
+                new BigDecimal("30.00"),
+                LocalDate.of(2024, 12, 10),
+                "Metro",
+                OffsetDateTime.now()
+        ));
+        transactionRepository.save(new Transaction(
+                UUID.randomUUID(),
+                otherAccount.getId(),
+                new BigDecimal("99.00"),
+                LocalDate.of(2024, 12, 12),
+                "Otro",
+                OffsetDateTime.now()
+        ));
+
+        transactionTagRepository.saveAll(List.of(
+                new TransactionTag(new TransactionTagId(first.getId(), transport.getId()), OffsetDateTime.now()),
+                new TransactionTag(new TransactionTagId(second.getId(), groceries.getId()), OffsetDateTime.now()),
+                new TransactionTag(new TransactionTagId(third.getId(), transport.getId()), OffsetDateTime.now())
+        ));
+
+        mockMvc.perform(get("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .param("accountId", account.getId().toString())
+                        .param("from", "2024-12-01")
+                        .param("to", "2024-12-31")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.totalItems").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(second.getId().toString()))
+                .andExpect(jsonPath("$.items[0].tags[0].name").value("Groceries"))
+                .andExpect(jsonPath("$.items[1].id").value(third.getId().toString()))
+                .andExpect(jsonPath("$.items[1].tags[0].name").value("Transport"));
     }
 }

@@ -4,6 +4,7 @@ import com.planifi.backend.application.AccountNotFoundException;
 import com.planifi.backend.application.ApiKeyNotFoundException;
 import com.planifi.backend.application.EmailAlreadyRegisteredException;
 import com.planifi.backend.application.IdempotencyKeyReuseException;
+import com.planifi.backend.application.InvalidDateRangeException;
 import com.planifi.backend.application.InvalidCredentialsException;
 import com.planifi.backend.application.TagNotFoundException;
 import com.planifi.backend.api.dto.ErrorResponse;
@@ -53,6 +54,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIdempotencyReuse(IdempotencyKeyReuseException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse("IDEMPOTENCY_KEY_REUSED", ex.getMessage(), traceId()));
+    }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDateRange(InvalidDateRangeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_DATE_RANGE", ex.getMessage(), traceId()));
     }
 
     @ExceptionHandler(TagNotFoundException.class)

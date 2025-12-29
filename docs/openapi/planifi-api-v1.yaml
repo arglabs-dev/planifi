@@ -193,6 +193,122 @@ paths:
           $ref: "#/components/responses/ConflictError"
         "500":
           $ref: "#/components/responses/InternalError"
+  /accounts:
+    get:
+      summary: Listar cuentas activas
+      operationId: listAccounts
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Lista de cuentas activas
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      summary: Crear cuenta en MXN
+      operationId: createAccount
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountRequest"
+      responses:
+        "201":
+          description: Cuenta creada
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /accounts/{accountId}/disable:
+    post:
+      summary: Deshabilitar cuenta
+      operationId: disableAccount
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Cuenta deshabilitada
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /expenses:
     get:
       summary: Listar gastos
@@ -356,6 +472,54 @@ components:
           minLength: 1
           maxLength: 255
           example: "Taxi al aeropuerto"
+    CreateAccountRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: "Cuenta nómina"
+        type:
+          type: string
+          enum:
+            - CASH
+            - BANK
+            - DEBIT_CARD
+            - CREDIT_CARD
+          example: "BANK"
+    Account:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - type
+        - currency
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - CASH
+            - BANK
+            - DEBIT_CARD
+            - CREDIT_CARD
+        currency:
+          type: string
+          example: "MXN"
+        createdAt:
+          type: string
+          format: date-time
     Expense:
       type: object
       additionalProperties: false

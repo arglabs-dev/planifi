@@ -3,6 +3,7 @@ package com.planifi.backend.application.bootstrap;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planifi.backend.domain.Account;
+import com.planifi.backend.domain.AccountType;
 import com.planifi.backend.domain.SystemSetting;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
@@ -82,9 +83,10 @@ public class BootstrapService {
         OffsetDateTime now = OffsetDateTime.now();
         Account account = existing
                 .map(current -> new Account(current.getId(), user.getId(), config.name(),
-                        config.currency().toUpperCase(Locale.ROOT), current.getCreatedAt()))
+                        current.getType(), config.currency().toUpperCase(Locale.ROOT),
+                        current.getCreatedAt(), current.getDisabledAt()))
                 .orElseGet(() -> new Account(UUID.randomUUID(), user.getId(), config.name(),
-                        config.currency().toUpperCase(Locale.ROOT), now));
+                        AccountType.CASH, config.currency().toUpperCase(Locale.ROOT), now, null));
         accountRepository.save(account);
     }
 

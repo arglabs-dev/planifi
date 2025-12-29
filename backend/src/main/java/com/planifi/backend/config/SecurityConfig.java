@@ -47,6 +47,10 @@ public class SecurityConfig {
                     if (securityProperties.isEnabled()) {
                         registry.requestMatchers(HttpMethod.POST, "/api/v1/expenses").authenticated();
                         registry.requestMatchers(HttpMethod.GET, "/api/v1/expenses").authenticated();
+                        registry.requestMatchers(HttpMethod.POST, "/api/v1/accounts").authenticated();
+                        registry.requestMatchers(HttpMethod.GET, "/api/v1/accounts").authenticated();
+                        registry.requestMatchers(HttpMethod.POST, "/api/v1/accounts/*/disable")
+                                .authenticated();
                         registry.requestMatchers("/api/v1/api-keys/**").authenticated();
                         registry.anyRequest().denyAll();
                     } else {

@@ -53,6 +53,8 @@ public class SecurityConfig {
                                 .authenticated();
                         registry.requestMatchers(HttpMethod.POST, "/api/v1/transactions")
                                 .authenticated();
+                        registry.requestMatchers(HttpMethod.GET, "/api/v1/transactions")
+                                .authenticated();
                         registry.requestMatchers("/api/v1/api-keys/**").authenticated();
                         registry.anyRequest().denyAll();
                     } else {

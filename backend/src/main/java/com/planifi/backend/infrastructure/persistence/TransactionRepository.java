@@ -1,12 +1,22 @@
 package com.planifi.backend.infrastructure.persistence;
 
 import com.planifi.backend.domain.Transaction;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     List<Transaction> findByAccountIdInOrderByOccurredOnDesc(List<UUID> accountIds);
+
+    Page<Transaction> findByAccountIdAndOccurredOnBetween(
+            UUID accountId,
+            LocalDate from,
+            LocalDate to,
+            Pageable pageable
+    );
 }

@@ -2,19 +2,31 @@ package com.planifi.backend.api;
 
 import com.planifi.backend.api.dto.CreateExpenseRequest;
 import com.planifi.backend.api.dto.ExpenseResponse;
+import com.planifi.backend.api.dto.TagResponse;
 import com.planifi.backend.application.ExpenseService;
+import com.planifi.backend.application.InvalidCredentialsException;
+import com.planifi.backend.application.TransactionResult;
+import com.planifi.backend.application.TransactionService;
+import com.planifi.backend.config.AuthenticatedApiKey;
+import com.planifi.backend.config.AuthenticatedUser;
 import com.planifi.backend.domain.Expense;
+import com.planifi.backend.domain.Tag;
+import com.planifi.backend.domain.Transaction;
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import jakarta.validation.constraints.NotBlank;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,41 +36,123 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class ExpenseController {
 
+    private final TransactionService transactionService;
     private final ExpenseService expenseService;
 
-    public ExpenseController(ExpenseService expenseService) {
+    public ExpenseController(TransactionService transactionService, ExpenseService expenseService) {
+        this.transactionService = transactionService;
         this.expenseService = expenseService;
     }
 
     @GetMapping
-    public List<ExpenseResponse> listExpenses() {
-        return expenseService.findAll().stream()
-                .map(this::toResponse)
+    public List<ExpenseResponse> listExpenses(Authentication authentication) {
+        UUID userId = requireUserId(authentication);
+        List<TransactionResult> transactions = transactionService.listTransactions(userId);
+        Set<UUID> transactionIds = transactions.stream()
+                .map(result -> result.transaction().getId())
+                .collect(Collectors.toSet());
+        List<Expense> legacyExpenses = expenseService.findAll().stream()
+                .filter(expense -> !transactionIds.contains(expense.getId()))
+                .toList();
+
+        List<ExpenseEntry> entries = new ArrayList<>();
+        for (TransactionResult result : transactions) {
+            Transaction transaction = result.transaction();
+            entries.add(new ExpenseEntry(
+                    toResponse(transaction, result.tags()),
+                    transaction.getOccurredOn(),
+                    transaction.getCreatedAt()
+            ));
+        }
+        for (Expense legacyExpense : legacyExpenses) {
+            entries.add(new ExpenseEntry(
+                    toResponse(legacyExpense),
+                    legacyExpense.getOccurredOn(),
+                    legacyExpense.getCreatedAt()
+            ));
+        }
+        return entries.stream()
+                .sorted(Comparator.comparing(ExpenseEntry::occurredOn)
+                        .thenComparing(ExpenseEntry::createdAt)
+                        .reversed())
+                .map(ExpenseEntry::response)
                 .toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ExpenseResponse createExpense(@Valid @RequestBody CreateExpenseRequest request) {
-        Expense newExpense = new Expense(
-                UUID.randomUUID(),
+    public ExpenseResponse createExpense(
+            Authentication authentication,
+            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
+            @Valid @RequestBody CreateExpenseRequest request) {
+        UUID userId = requireUserId(authentication);
+        boolean createMissingTags = Boolean.TRUE.equals(request.createMissingTags());
+        TransactionResult result = transactionService.createTransaction(
+                userId,
+                request.accountId(),
                 request.amount(),
                 request.occurredOn(),
                 request.description(),
-                OffsetDateTime.now()
+                request.tags(),
+                createMissingTags,
+                idempotencyKey
         );
-        Expense persisted = expenseService.create(newExpense);
-        return toResponse(persisted);
+        expenseService.create(new Expense(
+                result.transaction().getId(),
+                result.transaction().getAmount(),
+                result.transaction().getOccurredOn(),
+                result.transaction().getDescription(),
+                result.transaction().getCreatedAt()
+        ));
+        return toResponse(result.transaction(), result.tags());
+    }
+
+    private ExpenseResponse toResponse(Transaction transaction, List<Tag> tags) {
+        List<TagResponse> tagResponses = tags.stream()
+                .map(tag -> new TagResponse(tag.getId(), tag.getName(), tag.getCreatedAt()))
+                .toList();
+        return new ExpenseResponse(
+                transaction.getId(),
+                transaction.getAccountId(),
+                transaction.getAmount(),
+                transaction.getOccurredOn(),
+                transaction.getDescription(),
+                transaction.getCreatedAt(),
+                tagResponses
+        );
     }
 
     private ExpenseResponse toResponse(Expense expense) {
-        BigDecimal amount = expense.getAmount();
         return new ExpenseResponse(
                 expense.getId(),
-                amount,
+                null,
+                expense.getAmount(),
                 expense.getOccurredOn(),
                 expense.getDescription(),
-                expense.getCreatedAt()
+                expense.getCreatedAt(),
+                List.of()
         );
+    }
+
+    private UUID requireUserId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new InvalidCredentialsException();
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof AuthenticatedUser authenticatedUser) {
+            return authenticatedUser.userId();
+        }
+        if (principal instanceof AuthenticatedApiKey authenticatedApiKey) {
+            if (authenticatedApiKey.userId() == null) {
+                throw new InvalidCredentialsException();
+            }
+            return authenticatedApiKey.userId();
+        }
+        throw new InvalidCredentialsException();
+    }
+
+    private record ExpenseEntry(ExpenseResponse response,
+                                java.time.LocalDate occurredOn,
+                                java.time.OffsetDateTime createdAt) {
     }
 }

@@ -577,10 +577,15 @@ components:
       type: object
       additionalProperties: false
       required:
+        - accountId
         - amount
         - occurredOn
         - description
       properties:
+        accountId:
+          type: string
+          format: uuid
+          nullable: true
         amount:
           type: number
           format: decimal
@@ -594,6 +599,15 @@ components:
           minLength: 1
           maxLength: 255
           example: "Taxi al aeropuerto"
+        tags:
+          type: array
+          maxItems: 25
+          items:
+            type: string
+            maxLength: 80
+        createMissingTags:
+          type: boolean
+          default: false
     CreateTagRequest:
       type: object
       additionalProperties: false
@@ -738,12 +752,17 @@ components:
       additionalProperties: false
       required:
         - id
+        - accountId
         - amount
         - occurredOn
         - description
         - createdAt
+        - tags
       properties:
         id:
+          type: string
+          format: uuid
+        accountId:
           type: string
           format: uuid
         amount:
@@ -757,6 +776,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
     ErrorResponse:
       type: object
       additionalProperties: false

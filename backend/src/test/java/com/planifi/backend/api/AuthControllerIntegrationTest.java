@@ -10,10 +10,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planifi.backend.api.dto.CreateExpenseRequest;
 import com.planifi.backend.api.dto.LoginRequest;
 import com.planifi.backend.api.dto.RegisterUserRequest;
-import com.planifi.backend.infrastructure.persistence.ExpenseRepository;
+import com.planifi.backend.domain.Account;
+import com.planifi.backend.domain.AccountType;
+import com.planifi.backend.infrastructure.persistence.AccountRepository;
 import com.planifi.backend.infrastructure.persistence.UserRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,11 +52,11 @@ class AuthControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private ExpenseRepository expenseRepository;
+    private AccountRepository accountRepository;
 
     @BeforeEach
     void cleanDatabase() {
-        expenseRepository.deleteAll();
+        accountRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -99,15 +104,29 @@ class AuthControllerIntegrationTest {
 
         String token = objectMapper.readTree(loginResult.getResponse().getContentAsString())
                 .get("token").asText();
+        UUID userId = userRepository.findAll().getFirst().getId();
+        Account account = accountRepository.save(new Account(
+                UUID.randomUUID(),
+                userId,
+                "Cuenta autenticada",
+                AccountType.CASH,
+                "MXN",
+                OffsetDateTime.now(),
+                null
+        ));
 
         CreateExpenseRequest expenseRequest = new CreateExpenseRequest(
+                account.getId(),
                 new BigDecimal("45.00"),
                 LocalDate.of(2024, 10, 5),
-                "Office supplies"
+                "Office supplies",
+                List.of("Oficina"),
+                true
         );
 
         mockMvc.perform(post("/api/v1/expenses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .header("Idempotency-Key", "idem-auth-expense")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(expenseRequest)))
                 .andExpect(status().isCreated());
@@ -116,9 +135,12 @@ class AuthControllerIntegrationTest {
     @Test
     void protectedEndpointRejectsAnonymousRequests() throws Exception {
         CreateExpenseRequest expenseRequest = new CreateExpenseRequest(
+                UUID.randomUUID(),
                 new BigDecimal("18.75"),
                 LocalDate.of(2024, 10, 6),
-                "Taxi"
+                "Taxi",
+                List.of(),
+                false
         );
 
         mockMvc.perform(post("/api/v1/expenses")

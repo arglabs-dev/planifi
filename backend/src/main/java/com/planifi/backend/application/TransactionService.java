@@ -9,6 +9,7 @@ import com.planifi.backend.domain.TransactionTag;
 import com.planifi.backend.domain.TransactionTagId;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
 import com.planifi.backend.infrastructure.persistence.IdempotencyKeyRepository;
+import com.planifi.backend.infrastructure.persistence.TagRepository;
 import com.planifi.backend.infrastructure.persistence.TransactionRepository;
 import com.planifi.backend.infrastructure.persistence.TransactionTagRepository;
 import java.math.BigDecimal;
@@ -16,14 +17,19 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +40,7 @@ public class TransactionService {
     private final TransactionTagRepository transactionTagRepository;
     private final AccountRepository accountRepository;
     private final TagService tagService;
+    private final TagRepository tagRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final ObjectMapper objectMapper;
 
@@ -41,14 +48,63 @@ public class TransactionService {
                               TransactionTagRepository transactionTagRepository,
                               AccountRepository accountRepository,
                               TagService tagService,
+                              TagRepository tagRepository,
                               IdempotencyKeyRepository idempotencyKeyRepository,
                               ObjectMapper objectMapper) {
         this.transactionRepository = transactionRepository;
         this.transactionTagRepository = transactionTagRepository;
         this.accountRepository = accountRepository;
         this.tagService = tagService;
+        this.tagRepository = tagRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.objectMapper = objectMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TransactionResult> listTransactions(UUID userId) {
+        List<UUID> accountIds = accountRepository
+                .findByUserIdAndDisabledAtIsNullOrderByCreatedAtAsc(userId)
+                .stream()
+                .map(account -> account.getId())
+                .toList();
+        if (accountIds.isEmpty()) {
+            return List.of();
+        }
+        List<Transaction> transactions = transactionRepository
+                .findByAccountIdInOrderByOccurredOnDesc(accountIds);
+        if (transactions.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> transactionIds = transactions.stream()
+                .map(Transaction::getId)
+                .toList();
+        List<TransactionTag> mappings = transactionTagRepository
+                .findByIdTransactionIdIn(transactionIds);
+        Set<UUID> tagIds = mappings.stream()
+                .map(mapping -> mapping.getId().getTagId())
+                .collect(Collectors.toSet());
+        Map<UUID, Tag> tagById = tagRepository.findAllById(tagIds).stream()
+                .collect(Collectors.toMap(Tag::getId, tag -> tag));
+        Map<UUID, List<Tag>> tagsByTransactionId = new HashMap<>();
+        for (TransactionTag mapping : mappings) {
+            Tag tag = tagById.get(mapping.getId().getTagId());
+            if (tag == null) {
+                continue;
+            }
+            tagsByTransactionId
+                    .computeIfAbsent(mapping.getId().getTransactionId(), ignored -> new ArrayList<>())
+                    .add(tag);
+        }
+        return transactions.stream()
+                .map(transaction -> {
+                    List<Tag> tags = tagsByTransactionId
+                            .getOrDefault(transaction.getId(), List.of())
+                            .stream()
+                            .sorted(Comparator.comparing(Tag::getName))
+                            .toList();
+                    return new TransactionResult(transaction, tags);
+                })
+                .toList();
     }
 
     @Transactional

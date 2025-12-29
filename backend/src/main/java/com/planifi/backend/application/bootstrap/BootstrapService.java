@@ -66,7 +66,7 @@ public class BootstrapService {
 
         User user = existing
                 .map(current -> new User(current.getId(), normalizedEmail, passwordHash,
-                        config.fullName(), current.getCreatedAt()))
+                        resolveFullName(config, current), current.getCreatedAt()))
                 .orElseGet(() -> new User(UUID.randomUUID(), normalizedEmail, passwordHash,
                         config.fullName(), now));
 
@@ -99,6 +99,14 @@ public class BootstrapService {
             return existing.getPasswordHash();
         }
         throw new BootstrapConfigException("Falta password para usuario: " + config.email());
+    }
+
+    private String resolveFullName(BootstrapUserConfig config, User existing) {
+        String fullName = config.fullName();
+        if (fullName != null && !fullName.isBlank()) {
+            return fullName;
+        }
+        return existing.getFullName();
     }
 
     private String normalizeEmail(String email) {

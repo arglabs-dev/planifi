@@ -1,5 +1,6 @@
 package com.planifi.backend.api;
 
+import com.planifi.backend.application.AccountNotFoundException;
 import com.planifi.backend.application.ApiKeyNotFoundException;
 import com.planifi.backend.application.EmailAlreadyRegisteredException;
 import com.planifi.backend.application.IdempotencyKeyReuseException;
@@ -39,6 +40,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleApiKeyNotFound(ApiKeyNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("API_KEY_NOT_FOUND", ex.getMessage(), traceId()));
+    }
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotFound(AccountNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("ACCOUNT_NOT_FOUND", ex.getMessage(), traceId()));
     }
 
     @ExceptionHandler(IdempotencyKeyReuseException.class)

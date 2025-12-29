@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planifi.backend.domain.Account;
+import com.planifi.backend.domain.AccountType;
 import com.planifi.backend.domain.SystemSetting;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
@@ -98,7 +99,8 @@ class BootstrapServiceTest {
         UUID userId = UUID.randomUUID();
         OffsetDateTime createdAt = OffsetDateTime.now().minusDays(2);
         User existing = new User(userId, "user@example.com", "old-hash", "User", createdAt);
-        Account existingAccount = new Account(UUID.randomUUID(), userId, "Principal", "MXN", createdAt);
+        Account existingAccount = new Account(UUID.randomUUID(), userId, "Principal",
+                AccountType.CASH, "MXN", createdAt, null);
 
         BootstrapConfig config = new BootstrapConfig(
                 "v1",

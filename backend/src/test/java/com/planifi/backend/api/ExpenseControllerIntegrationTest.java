@@ -17,6 +17,7 @@ import com.planifi.backend.domain.IdempotencyKey;
 import com.planifi.backend.domain.Transaction;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
+import com.planifi.backend.infrastructure.persistence.ExpenseRepository;
 import com.planifi.backend.infrastructure.persistence.IdempotencyKeyRepository;
 import com.planifi.backend.infrastructure.persistence.TagRepository;
 import com.planifi.backend.infrastructure.persistence.TransactionRepository;
@@ -27,6 +28,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +59,9 @@ class ExpenseControllerIntegrationTest {
     private TagRepository tagRepository;
 
     @Autowired
+    private ExpenseRepository expenseRepository;
+
+    @Autowired
     private AccountRepository accountRepository;
 
     @Autowired
@@ -77,6 +82,7 @@ class ExpenseControllerIntegrationTest {
         transactionTagRepository.deleteAll();
         transactionRepository.deleteAll();
         tagRepository.deleteAll();
+        expenseRepository.deleteAll();
         accountRepository.deleteAll();
         idempotencyKeyRepository.deleteAll();
         userRepository.deleteAll();
@@ -209,5 +215,24 @@ class ExpenseControllerIntegrationTest {
         String createdAt = objectMapper.readTree(body).get(0).get("createdAt").asText();
         assertThat(OffsetDateTime.parse(createdAt).toInstant())
                 .isEqualTo(savedTransaction.getCreatedAt().toInstant());
+    }
+
+    @Test
+    void listExpensesIncludesLegacyEntries() throws Exception {
+        expenseRepository.save(new com.planifi.backend.domain.Expense(
+                UUID.randomUUID(),
+                new BigDecimal("12.34"),
+                LocalDate.of(2024, 7, 15),
+                "Legacy entry",
+                OffsetDateTime.parse("2024-07-16T08:30:00+00:00")
+        ));
+
+        mockMvc.perform(get("/api/v1/expenses")
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].amount").value(12.34))
+                .andExpect(jsonPath("$[0].description").value("Legacy entry"))
+                .andExpect(jsonPath("$[0].accountId").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$[0].tags").isArray());
     }
 }

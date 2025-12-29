@@ -3,17 +3,23 @@ package com.planifi.backend.api;
 import com.planifi.backend.api.dto.CreateExpenseRequest;
 import com.planifi.backend.api.dto.ExpenseResponse;
 import com.planifi.backend.api.dto.TagResponse;
+import com.planifi.backend.application.ExpenseService;
 import com.planifi.backend.application.InvalidCredentialsException;
 import com.planifi.backend.application.TransactionResult;
 import com.planifi.backend.application.TransactionService;
 import com.planifi.backend.config.AuthenticatedApiKey;
 import com.planifi.backend.config.AuthenticatedUser;
+import com.planifi.backend.domain.Expense;
 import com.planifi.backend.domain.Tag;
 import com.planifi.backend.domain.Transaction;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
@@ -31,16 +37,45 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExpenseController {
 
     private final TransactionService transactionService;
+    private final ExpenseService expenseService;
 
-    public ExpenseController(TransactionService transactionService) {
+    public ExpenseController(TransactionService transactionService, ExpenseService expenseService) {
         this.transactionService = transactionService;
+        this.expenseService = expenseService;
     }
 
     @GetMapping
     public List<ExpenseResponse> listExpenses(Authentication authentication) {
         UUID userId = requireUserId(authentication);
-        return transactionService.listTransactions(userId).stream()
-                .map(result -> toResponse(result.transaction(), result.tags()))
+        List<TransactionResult> transactions = transactionService.listTransactions(userId);
+        Set<UUID> transactionIds = transactions.stream()
+                .map(result -> result.transaction().getId())
+                .collect(Collectors.toSet());
+        List<Expense> legacyExpenses = expenseService.findAll().stream()
+                .filter(expense -> !transactionIds.contains(expense.getId()))
+                .toList();
+
+        List<ExpenseEntry> entries = new ArrayList<>();
+        for (TransactionResult result : transactions) {
+            Transaction transaction = result.transaction();
+            entries.add(new ExpenseEntry(
+                    toResponse(transaction, result.tags()),
+                    transaction.getOccurredOn(),
+                    transaction.getCreatedAt()
+            ));
+        }
+        for (Expense legacyExpense : legacyExpenses) {
+            entries.add(new ExpenseEntry(
+                    toResponse(legacyExpense),
+                    legacyExpense.getOccurredOn(),
+                    legacyExpense.getCreatedAt()
+            ));
+        }
+        return entries.stream()
+                .sorted(Comparator.comparing(ExpenseEntry::occurredOn)
+                        .thenComparing(ExpenseEntry::createdAt)
+                        .reversed())
+                .map(ExpenseEntry::response)
                 .toList();
     }
 
@@ -62,6 +97,13 @@ public class ExpenseController {
                 createMissingTags,
                 idempotencyKey
         );
+        expenseService.create(new Expense(
+                result.transaction().getId(),
+                result.transaction().getAmount(),
+                result.transaction().getOccurredOn(),
+                result.transaction().getDescription(),
+                result.transaction().getCreatedAt()
+        ));
         return toResponse(result.transaction(), result.tags());
     }
 
@@ -80,6 +122,18 @@ public class ExpenseController {
         );
     }
 
+    private ExpenseResponse toResponse(Expense expense) {
+        return new ExpenseResponse(
+                expense.getId(),
+                null,
+                expense.getAmount(),
+                expense.getOccurredOn(),
+                expense.getDescription(),
+                expense.getCreatedAt(),
+                List.of()
+        );
+    }
+
     private UUID requireUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new InvalidCredentialsException();
@@ -95,5 +149,10 @@ public class ExpenseController {
             return authenticatedApiKey.userId();
         }
         throw new InvalidCredentialsException();
+    }
+
+    private record ExpenseEntry(ExpenseResponse response,
+                                java.time.LocalDate occurredOn,
+                                java.time.OffsetDateTime createdAt) {
     }
 }

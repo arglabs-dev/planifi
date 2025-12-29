@@ -585,6 +585,7 @@ components:
         accountId:
           type: string
           format: uuid
+          nullable: true
         amount:
           type: number
           format: decimal

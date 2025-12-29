@@ -32,6 +32,11 @@ docker build -t planifi-backend:dev ./backend
 La imagen expone el puerto `8080` y lee la configuración desde variables de
 entorno (ver tabla de variables al final del documento).
 
+## Configuración por archivos (bootstrap)
+
+El backend puede cargar datos iniciales y settings desde un archivo JSON/YAML.
+Consulta la especificación y reglas en [`docs/configuration.md`](configuration.md).
+
 ## Desarrollo sin contenedores
 
 1. Levanta dependencias externas:
@@ -88,6 +93,8 @@ entorno (ver tabla de variables al final del documento).
 | `PLANIFI_SECURITY_STATIC_KEYS` | API keys separadas por comas | `dev-default-key` |
 | `PLANIFI_SECURITY_API_KEY_HEADER` | Nombre de la cabecera para API key | `X-MCP-API-Key` |
 | `PLANIFI_SECURITY_API_KEY_PREFIX` | Prefijo para API key generadas | `pln` |
+| `PLANIFI_BOOTSTRAP_CONFIG_PATH` | Ruta del archivo bootstrap (JSON/YAML) | `/ruta/planifi-bootstrap.yml` |
+| `PLANIFI_BOOTSTRAP_ENABLED` | Habilita carga bootstrap (`true`/`false`) | `true` |
 | `SPRING_DATASOURCE_URL` | JDBC URL de Postgres | `jdbc:postgresql://db:5432/app` |
 | `SPRING_DATASOURCE_USERNAME` | Usuario de base de datos | `planifi` |
 | `SPRING_DATASOURCE_PASSWORD` | Contraseña de base de datos | `planifi` |

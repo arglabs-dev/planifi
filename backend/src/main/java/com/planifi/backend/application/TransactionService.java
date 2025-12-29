@@ -60,7 +60,6 @@ public class TransactionService {
                                                List<String> tags,
                                                boolean createMissingTags,
                                                String idempotencyKey) {
-        ensureAccountExists(userId, accountId);
         List<String> normalizedTags = normalizeTags(tags);
         String requestHash = hashRequest(
                 "create-transaction",
@@ -74,6 +73,7 @@ public class TransactionService {
         );
 
         return executeIdempotent(idempotencyKey, requestHash, TransactionResult.class, () -> {
+            ensureAccountExists(userId, accountId);
             List<Tag> resolvedTags = tagService.resolveTags(userId, normalizedTags, createMissingTags);
             Transaction transaction = transactionRepository.save(new Transaction(
                     UUID.randomUUID(),

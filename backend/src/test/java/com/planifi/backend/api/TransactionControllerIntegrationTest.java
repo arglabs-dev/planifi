@@ -12,6 +12,7 @@ import com.planifi.backend.api.dto.TransactionResponse;
 import com.planifi.backend.config.AuthenticatedUser;
 import com.planifi.backend.domain.Account;
 import com.planifi.backend.domain.AccountType;
+import com.planifi.backend.domain.IdempotencyKey;
 import com.planifi.backend.domain.Transaction;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
@@ -24,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -173,6 +175,55 @@ class TransactionControllerIntegrationTest {
         assertThat(transactionRepository.count()).isEqualTo(1);
         assertThat(tagRepository.count()).isEqualTo(1);
         assertThat(transactionTagRepository.count()).isEqualTo(1);
+        assertThat(idempotencyKeyRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void createTransactionReplaysAfterAccountDeletion() throws Exception {
+        CreateTransactionRequest request = new CreateTransactionRequest(
+                account.getId(),
+                new BigDecimal("88.75"),
+                LocalDate.of(2024, 12, 15),
+                "Reintento",
+                List.of("Replay"),
+                true
+        );
+        String idempotencyKey = "idem-tx-account-removed";
+
+        MvcResult firstResult = mockMvc.perform(post("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        TransactionResponse firstResponse = objectMapper.readValue(
+                firstResult.getResponse().getContentAsString(),
+                TransactionResponse.class);
+
+        Optional<IdempotencyKey> storedKey = idempotencyKeyRepository.findByIdempotencyKey(idempotencyKey);
+        assertThat(storedKey).isPresent();
+        assertThat(storedKey.orElseThrow().getResponseBody()).isNotBlank();
+
+        accountRepository.deleteById(account.getId());
+        assertThat(accountRepository.findById(account.getId())).isEmpty();
+        long transactionCountAfterDeletion = transactionRepository.count();
+
+        MvcResult secondResult = mockMvc.perform(post("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        TransactionResponse secondResponse = objectMapper.readValue(
+                secondResult.getResponse().getContentAsString(),
+                TransactionResponse.class);
+
+        assertThat(secondResponse.id()).isEqualTo(firstResponse.id());
+        assertThat(transactionRepository.count()).isEqualTo(transactionCountAfterDeletion);
         assertThat(idempotencyKeyRepository.count()).isEqualTo(1);
     }
 

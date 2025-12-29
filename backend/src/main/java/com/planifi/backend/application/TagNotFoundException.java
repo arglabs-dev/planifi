@@ -7,8 +7,8 @@ public class TagNotFoundException extends RuntimeException {
     private final List<String> missingTags;
 
     public TagNotFoundException(List<String> missingTags) {
-        super("Tags not found: " + String.join(", ", missingTags));
-        this.missingTags = missingTags;
+        super("Missing tags: " + String.join(", ", missingTags));
+        this.missingTags = List.copyOf(missingTags);
     }
 
     public List<String> getMissingTags() {

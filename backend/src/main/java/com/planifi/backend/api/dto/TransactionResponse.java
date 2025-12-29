@@ -13,6 +13,6 @@ public record TransactionResponse(
         LocalDate occurredOn,
         String description,
         OffsetDateTime createdAt,
-        List<String> tags
+        List<TagResponse> tags
 ) {
 }

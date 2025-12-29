@@ -1,11 +1,14 @@
 package com.planifi.backend.api;
 
 import com.planifi.backend.api.dto.CreateTransactionRequest;
+import com.planifi.backend.api.dto.TagResponse;
 import com.planifi.backend.api.dto.TransactionResponse;
 import com.planifi.backend.application.InvalidCredentialsException;
+import com.planifi.backend.application.TransactionResult;
 import com.planifi.backend.application.TransactionService;
 import com.planifi.backend.config.AuthenticatedApiKey;
 import com.planifi.backend.config.AuthenticatedUser;
+import com.planifi.backend.domain.Tag;
 import com.planifi.backend.domain.Transaction;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -39,8 +42,24 @@ public class TransactionController {
             @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody CreateTransactionRequest request) {
         UUID userId = requireUserId(authentication);
-        Transaction transaction = transactionService.createTransaction(userId, request);
-        List<String> tags = request.tags() == null ? List.of() : request.tags();
+        boolean createMissingTags = Boolean.TRUE.equals(request.createMissingTags());
+        TransactionResult result = transactionService.createTransaction(
+                userId,
+                request.accountId(),
+                request.amount(),
+                request.occurredOn(),
+                request.description(),
+                request.tags(),
+                createMissingTags,
+                idempotencyKey
+        );
+        return toResponse(result.transaction(), result.tags());
+    }
+
+    private TransactionResponse toResponse(Transaction transaction, List<Tag> tags) {
+        List<TagResponse> tagResponses = tags.stream()
+                .map(tag -> new TagResponse(tag.getId(), tag.getName(), tag.getCreatedAt()))
+                .toList();
         return new TransactionResponse(
                 transaction.getId(),
                 transaction.getAccountId(),
@@ -48,7 +67,7 @@ public class TransactionController {
                 transaction.getOccurredOn(),
                 transaction.getDescription(),
                 transaction.getCreatedAt(),
-                tags
+                tagResponses
         );
     }
 

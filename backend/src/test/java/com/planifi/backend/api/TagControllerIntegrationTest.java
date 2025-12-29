@@ -2,25 +2,19 @@ package com.planifi.backend.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.planifi.backend.api.dto.CreateTransactionRequest;
+import com.planifi.backend.api.dto.CreateTagRequest;
 import com.planifi.backend.config.AuthenticatedUser;
-import com.planifi.backend.domain.Account;
-import com.planifi.backend.domain.AccountType;
-import com.planifi.backend.domain.Transaction;
+import com.planifi.backend.domain.Tag;
 import com.planifi.backend.domain.User;
-import com.planifi.backend.infrastructure.persistence.AccountRepository;
 import com.planifi.backend.infrastructure.persistence.IdempotencyKeyRepository;
 import com.planifi.backend.infrastructure.persistence.TagRepository;
-import com.planifi.backend.infrastructure.persistence.TransactionRepository;
-import com.planifi.backend.infrastructure.persistence.TransactionTagRepository;
 import com.planifi.backend.infrastructure.persistence.UserRepository;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,19 +32,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-class TransactionControllerIntegrationTest {
+class TagControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private AccountRepository accountRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private TransactionTagRepository transactionTagRepository;
 
     @Autowired
     private TagRepository tagRepository;
@@ -66,69 +51,66 @@ class TransactionControllerIntegrationTest {
 
     private Authentication authentication;
     private UUID userId;
-    private Account account;
 
     @BeforeEach
     void setUp() {
-        transactionTagRepository.deleteAll();
-        transactionRepository.deleteAll();
         tagRepository.deleteAll();
-        accountRepository.deleteAll();
         idempotencyKeyRepository.deleteAll();
         userRepository.deleteAll();
 
         userId = UUID.randomUUID();
         userRepository.save(new User(
                 userId,
-                "transactions@planifi.app",
+                "tags@planifi.app",
                 "password-hash",
-                "Transaction Tester",
+                "Tag Tester",
                 OffsetDateTime.now()
         ));
-        account = accountRepository.save(new Account(
-                UUID.randomUUID(),
-                userId,
-                "Cuenta principal",
-                AccountType.CASH,
-                "MXN",
-                OffsetDateTime.now(),
-                null
-        ));
-
         authentication = new UsernamePasswordAuthenticationToken(
-                new AuthenticatedUser(userId, "transactions@planifi.app"),
+                new AuthenticatedUser(userId, "tags@planifi.app"),
                 null,
                 List.of()
         );
     }
 
     @Test
-    void createTransactionCreatesTagsAndAssociations() throws Exception {
-        CreateTransactionRequest request = new CreateTransactionRequest(
-                account.getId(),
-                new BigDecimal("120.00"),
-                LocalDate.of(2024, 12, 5),
-                "Despensa",
-                List.of("Super", "Comida"),
-                true
-        );
+    void createTagPersistsAndReturnsPayload() throws Exception {
+        CreateTagRequest request = new CreateTagRequest("Supermercado");
 
-        mockMvc.perform(post("/api/v1/transactions")
+        mockMvc.perform(post("/api/v1/tags")
                         .with(authentication(authentication))
-                        .header("Idempotency-Key", "idem-tx-123456")
+                        .header("Idempotency-Key", "idem-tag-123456")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.accountId").value(account.getId().toString()))
-                .andExpect(jsonPath("$.tags[0].name").value("Super"))
-                .andExpect(jsonPath("$.tags[1].name").value("Comida"));
+                .andExpect(jsonPath("$.name").value("Supermercado"));
 
-        assertThat(transactionRepository.count()).isEqualTo(1);
-        assertThat(tagRepository.count()).isEqualTo(2);
-        assertThat(transactionTagRepository.count()).isEqualTo(2);
+        assertThat(tagRepository.count()).isEqualTo(1);
+        Tag stored = tagRepository.findAll().getFirst();
+        assertThat(stored.getUserId()).isEqualTo(userId);
+        assertThat(stored.getName()).isEqualTo("Supermercado");
+    }
 
-        Transaction saved = transactionRepository.findAll().getFirst();
-        assertThat(saved.getAccountId()).isEqualTo(account.getId());
+    @Test
+    void listTagsReturnsOrderedEntries() throws Exception {
+        tagRepository.save(new Tag(
+                UUID.randomUUID(),
+                userId,
+                "Zeta",
+                OffsetDateTime.parse("2024-01-10T10:00:00Z")
+        ));
+        tagRepository.save(new Tag(
+                UUID.randomUUID(),
+                userId,
+                "Alpha",
+                OffsetDateTime.parse("2024-01-11T10:00:00Z")
+        ));
+
+        mockMvc.perform(get("/api/v1/tags")
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Alpha"))
+                .andExpect(jsonPath("$[1].name").value("Zeta"));
     }
 }

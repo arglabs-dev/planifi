@@ -74,6 +74,7 @@ public class TransactionService {
         );
 
         return executeIdempotent(idempotencyKey, requestHash, TransactionResult.class, () -> {
+            List<Tag> resolvedTags = tagService.resolveTags(userId, normalizedTags, createMissingTags);
             Transaction transaction = transactionRepository.save(new Transaction(
                     UUID.randomUUID(),
                     accountId,
@@ -82,8 +83,6 @@ public class TransactionService {
                     description,
                     OffsetDateTime.now()
             ));
-
-            List<Tag> resolvedTags = tagService.resolveTags(userId, normalizedTags, createMissingTags);
             if (!resolvedTags.isEmpty()) {
                 List<TransactionTag> mappings = resolvedTags.stream()
                         .map(tag -> new TransactionTag(

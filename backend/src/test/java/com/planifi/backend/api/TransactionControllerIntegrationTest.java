@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planifi.backend.api.dto.CreateTransactionRequest;
+import com.planifi.backend.api.dto.TransactionResponse;
 import com.planifi.backend.config.AuthenticatedUser;
 import com.planifi.backend.domain.Account;
 import com.planifi.backend.domain.AccountType;
@@ -34,6 +35,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -130,5 +132,71 @@ class TransactionControllerIntegrationTest {
 
         Transaction saved = transactionRepository.findAll().getFirst();
         assertThat(saved.getAccountId()).isEqualTo(account.getId());
+    }
+
+    @Test
+    void createTransactionIsIdempotent() throws Exception {
+        CreateTransactionRequest request = new CreateTransactionRequest(
+                account.getId(),
+                new BigDecimal("45.50"),
+                LocalDate.of(2024, 12, 10),
+                "Transporte",
+                List.of("Taxi"),
+                true
+        );
+
+        MvcResult firstResult = mockMvc.perform(post("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .header("Idempotency-Key", "idem-tx-repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        TransactionResponse firstResponse = objectMapper.readValue(
+                firstResult.getResponse().getContentAsString(),
+                TransactionResponse.class);
+
+        MvcResult secondResult = mockMvc.perform(post("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .header("Idempotency-Key", "idem-tx-repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        TransactionResponse secondResponse = objectMapper.readValue(
+                secondResult.getResponse().getContentAsString(),
+                TransactionResponse.class);
+
+        assertThat(secondResponse.id()).isEqualTo(firstResponse.id());
+        assertThat(transactionRepository.count()).isEqualTo(1);
+        assertThat(tagRepository.count()).isEqualTo(1);
+        assertThat(transactionTagRepository.count()).isEqualTo(1);
+        assertThat(idempotencyKeyRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void createTransactionDeduplicatesTags() throws Exception {
+        CreateTransactionRequest request = new CreateTransactionRequest(
+                account.getId(),
+                new BigDecimal("200.00"),
+                LocalDate.of(2024, 12, 12),
+                "Mercado",
+                List.of("Food", "food", "  Food  "),
+                true
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(authentication(authentication))
+                        .header("Idempotency-Key", "idem-tx-dedupe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(1))
+                .andExpect(jsonPath("$.tags[0].name").value("Food"));
+
+        assertThat(tagRepository.count()).isEqualTo(1);
+        assertThat(transactionTagRepository.count()).isEqualTo(1);
     }
 }

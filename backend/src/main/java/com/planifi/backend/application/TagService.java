@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,12 +72,18 @@ public class TagService {
                 missing.add(normalized);
                 continue;
             }
-            Tag created = tagRepository.save(new Tag(
-                    UUID.randomUUID(),
-                    userId,
-                    normalized,
-                    OffsetDateTime.now()
-            ));
+            Tag created;
+            try {
+                created = tagRepository.save(new Tag(
+                        UUID.randomUUID(),
+                        userId,
+                        normalized,
+                        OffsetDateTime.now()
+                ));
+            } catch (DataIntegrityViolationException ex) {
+                created = tagRepository.findByUserIdAndNameIgnoreCase(userId, normalized)
+                        .orElseThrow(() -> ex);
+            }
             resolved.put(key, created);
         }
         if (!missing.isEmpty()) {
@@ -87,12 +94,19 @@ public class TagService {
 
     private Tag findOrCreate(UUID userId, String normalizedName) {
         return tagRepository.findByUserIdAndNameIgnoreCase(userId, normalizedName)
-                .orElseGet(() -> tagRepository.save(new Tag(
-                        UUID.randomUUID(),
-                        userId,
-                        normalizedName,
-                        OffsetDateTime.now()
-                )));
+                .orElseGet(() -> {
+                    try {
+                        return tagRepository.save(new Tag(
+                                UUID.randomUUID(),
+                                userId,
+                                normalizedName,
+                                OffsetDateTime.now()
+                        ));
+                    } catch (DataIntegrityViolationException ex) {
+                        return tagRepository.findByUserIdAndNameIgnoreCase(userId, normalizedName)
+                                .orElseThrow(() -> ex);
+                    }
+                });
     }
 
     private String normalize(String name) {

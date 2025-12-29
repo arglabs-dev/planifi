@@ -74,7 +74,7 @@ public class TagService {
             }
             Tag created;
             try {
-                created = tagRepository.save(new Tag(
+                created = tagRepository.saveAndFlush(new Tag(
                         UUID.randomUUID(),
                         userId,
                         normalized,
@@ -96,7 +96,7 @@ public class TagService {
         return tagRepository.findByUserIdAndNameIgnoreCase(userId, normalizedName)
                 .orElseGet(() -> {
                     try {
-                        return tagRepository.save(new Tag(
+                        return tagRepository.saveAndFlush(new Tag(
                                 UUID.randomUUID(),
                                 userId,
                                 normalizedName,

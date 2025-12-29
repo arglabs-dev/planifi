@@ -49,7 +49,7 @@ class TagServiceTest {
                 .thenReturn(Optional.empty());
         when(tagRepository.findByUserIdAndNameIgnoreCase(userId, name))
                 .thenReturn(Optional.empty(), Optional.of(existing));
-        when(tagRepository.save(any(Tag.class)))
+        when(tagRepository.saveAndFlush(any(Tag.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
         when(idempotencyKeyRepository.save(any(IdempotencyKey.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -58,7 +58,7 @@ class TagServiceTest {
 
         assertThat(result).isEqualTo(existing);
         verify(tagRepository, times(2)).findByUserIdAndNameIgnoreCase(userId, name);
-        verify(tagRepository).save(any(Tag.class));
+        verify(tagRepository).saveAndFlush(any(Tag.class));
         verify(idempotencyKeyRepository).save(any(IdempotencyKey.class));
     }
 
@@ -70,13 +70,13 @@ class TagServiceTest {
 
         when(tagRepository.findByUserIdAndNameIgnoreCase(userId, name))
                 .thenReturn(Optional.empty(), Optional.of(existing));
-        when(tagRepository.save(any(Tag.class)))
+        when(tagRepository.saveAndFlush(any(Tag.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
         List<Tag> result = tagService.resolveTags(userId, List.of(name), true);
 
         assertThat(result).containsExactly(existing);
         verify(tagRepository, times(2)).findByUserIdAndNameIgnoreCase(userId, name);
-        verify(tagRepository).save(any(Tag.class));
+        verify(tagRepository).saveAndFlush(any(Tag.class));
     }
 }

@@ -309,6 +309,128 @@ paths:
           $ref: "#/components/responses/ConflictError"
         "500":
           $ref: "#/components/responses/InternalError"
+  /tags:
+    get:
+      summary: Listar tags
+      operationId: listTags
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Lista de tags
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      summary: Crear tag
+      operationId: createTag
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTagRequest"
+      responses:
+        "201":
+          description: Tag creado
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /transactions:
+    post:
+      summary: Crear movimiento con tags
+      operationId: createTransaction
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Clave idempotente única para reintentos seguros.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 255
+        - name: correlation-id
+          in: header
+          required: false
+          description: ID de correlación propagado end-to-end.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransactionRequest"
+      responses:
+        "201":
+          description: Movimiento creado
+          headers:
+            correlation-id:
+              description: ID de correlación propagado en toda la petición
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /expenses:
     get:
       summary: Listar gastos
@@ -472,6 +594,48 @@ components:
           minLength: 1
           maxLength: 255
           example: "Taxi al aeropuerto"
+    CreateTagRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          example: "Supermercado"
+    CreateTransactionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - accountId
+        - amount
+        - occurredOn
+        - description
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          example: 350.75
+        occurredOn:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 255
+          example: "Despensa semanal"
+        tags:
+          type: array
+          maxItems: 25
+          items:
+            type: string
+            maxLength: 80
+        createMissingTags:
+          type: boolean
+          default: false
     CreateAccountRequest:
       type: object
       additionalProperties: false
@@ -492,6 +656,55 @@ components:
             - DEBIT_CARD
             - CREDIT_CARD
           example: "BANK"
+    Tag:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Transaction:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - accountId
+        - amount
+        - occurredOn
+        - description
+        - createdAt
+        - tags
+      properties:
+        id:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        occurredOn:
+          type: string
+          format: date
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
     Account:
       type: object
       additionalProperties: false

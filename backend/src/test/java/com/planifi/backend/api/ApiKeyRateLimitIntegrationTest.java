@@ -1,18 +1,21 @@
 package com.planifi.backend.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planifi.backend.api.dto.AuthResponse;
 import com.planifi.backend.api.dto.CreateExpenseRequest;
-import com.planifi.backend.config.AuthenticatedApiKey;
-import com.planifi.backend.config.AuthenticatedUser;
+import com.planifi.backend.api.dto.LoginRequest;
+import com.planifi.backend.api.dto.RegisterUserRequest;
+import com.planifi.backend.application.ApiKeyHasher;
+import com.planifi.backend.domain.ApiKey;
 import com.planifi.backend.domain.Account;
 import com.planifi.backend.domain.AccountType;
 import com.planifi.backend.domain.User;
 import com.planifi.backend.infrastructure.persistence.AccountRepository;
+import com.planifi.backend.infrastructure.persistence.ApiKeyRepository;
 import com.planifi.backend.infrastructure.persistence.ExpenseRepository;
 import com.planifi.backend.infrastructure.persistence.IdempotencyKeyRepository;
 import com.planifi.backend.infrastructure.persistence.TagRepository;
@@ -31,8 +34,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,6 +70,12 @@ class ApiKeyRateLimitIntegrationTest {
     private TagRepository tagRepository;
 
     @Autowired
+    private ApiKeyRepository apiKeyRepository;
+
+    @Autowired
+    private ApiKeyHasher apiKeyHasher;
+
+    @Autowired
     private ExpenseRepository expenseRepository;
 
     @Autowired
@@ -89,6 +96,7 @@ class ApiKeyRateLimitIntegrationTest {
         transactionTagRepository.deleteAll();
         transactionRepository.deleteAll();
         tagRepository.deleteAll();
+        apiKeyRepository.deleteAll();
         expenseRepository.deleteAll();
         accountRepository.deleteAll();
         idempotencyKeyRepository.deleteAll();
@@ -112,19 +120,21 @@ class ApiKeyRateLimitIntegrationTest {
                 null
         ));
         apiKey = "pln_test_" + UUID.randomUUID();
+        apiKeyRepository.save(new ApiKey(
+                UUID.randomUUID(),
+                userId,
+                "Rate limit key",
+                apiKeyHasher.hash(apiKey),
+                OffsetDateTime.now(),
+                null
+        ));
     }
 
     @Test
     void rateLimitBucketsByApiKeyAcrossIps() throws Exception {
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                new AuthenticatedApiKey(UUID.randomUUID(), userId),
-                apiKey,
-                List.of()
-        );
         String payload = objectMapper.writeValueAsString(expenseRequest());
 
         mockMvc.perform(post("/api/v1/expenses")
-                        .with(authentication(authentication))
                         .with(remoteAddress("10.0.0.1"))
                         .header("X-MCP-API-Key", apiKey)
                         .header("Idempotency-Key", "idem-api-key-1")
@@ -133,7 +143,6 @@ class ApiKeyRateLimitIntegrationTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/expenses")
-                        .with(authentication(authentication))
                         .with(remoteAddress("10.0.0.2"))
                         .header("X-MCP-API-Key", apiKey)
                         .header("Idempotency-Key", "idem-api-key-2")
@@ -145,29 +154,31 @@ class ApiKeyRateLimitIntegrationTest {
 
     @Test
     void rateLimitBucketsByUserIdAcrossIps() throws Exception {
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                new AuthenticatedUser(userId, "rate-limit@planifi.app"),
-                null,
-                List.of()
-        );
-        String payload = objectMapper.writeValueAsString(expenseRequest());
+        AuthResponse authResponse = registerUser("jwt-rate-limit@planifi.app", "Sup3rS3cret!");
+        Account jwtAccount = accountRepository.save(new Account(
+                UUID.randomUUID(),
+                authResponse.userId(),
+                "Cuenta JWT",
+                AccountType.CASH,
+                "MXN",
+                OffsetDateTime.now(),
+                null
+        ));
 
         mockMvc.perform(post("/api/v1/expenses")
-                        .with(authentication(authentication))
                         .with(remoteAddress("10.0.1.1"))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer test.jwt.token")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.token())
                         .header("Idempotency-Key", "idem-user-1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content(objectMapper.writeValueAsString(expenseRequest(jwtAccount))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/expenses")
-                        .with(authentication(authentication))
                         .with(remoteAddress("10.0.1.2"))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer test.jwt.token")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.token())
                         .header("Idempotency-Key", "idem-user-2")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content(objectMapper.writeValueAsString(expenseRequest(jwtAccount))))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.errorCode").value("RATE_LIMIT_EXCEEDED"));
     }
@@ -180,6 +191,41 @@ class ApiKeyRateLimitIntegrationTest {
                 "Rate limit test",
                 List.of(),
                 false
+        );
+    }
+
+    private CreateExpenseRequest expenseRequest(Account targetAccount) {
+        return new CreateExpenseRequest(
+                targetAccount.getId(),
+                new BigDecimal("12.50"),
+                LocalDate.of(2024, 10, 10),
+                "Rate limit test",
+                List.of(),
+                false
+        );
+    }
+
+    private AuthResponse registerUser(String email, String password) throws Exception {
+        RegisterUserRequest registerRequest = new RegisterUserRequest(
+                email,
+                password,
+                "Rate Limit JWT"
+        );
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isCreated());
+
+        LoginRequest loginRequest = new LoginRequest(email, password);
+        return objectMapper.readValue(
+                mockMvc.perform(post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest)))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                AuthResponse.class
         );
     }
 

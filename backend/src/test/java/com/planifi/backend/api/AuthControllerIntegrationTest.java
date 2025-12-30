@@ -148,4 +148,5 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(expenseRequest)))
                 .andExpect(status().isUnauthorized());
     }
+
 }

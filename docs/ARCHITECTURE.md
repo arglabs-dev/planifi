@@ -121,6 +121,9 @@ sequenceDiagram
   APIs tokenizadas, cabeceras de seguridad (HSTS, CSP, X-Content-Type-Options).
 - **Rate limiting**: por API key y por IP; protección de fuerza bruta en login;
   circuit breakers y timeouts en integraciones.
+- **CORS**: lista de orígenes permitidos configurable por entorno (deny-by-default).
+- **Headers de seguridad**: CSP, HSTS (cuando aplica), Referrer-Policy y
+  X-Content-Type-Options configurables por entorno.
 - **Logging seguro**: sin PII sensible; usar `correlation-id` y `request-id`
   propagados desde gateway/MCP.
 - **Hardening mínimo**:

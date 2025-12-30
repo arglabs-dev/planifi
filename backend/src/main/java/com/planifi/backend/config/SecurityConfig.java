@@ -69,8 +69,8 @@ public class SecurityConfig {
                     }
                 })
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthenticationFilter, RateLimitingFilter.class)
+                .addFilterAfter(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class)
                 .httpBasic(Customizer.withDefaults())
                 .formLogin(login -> login.disable());
 

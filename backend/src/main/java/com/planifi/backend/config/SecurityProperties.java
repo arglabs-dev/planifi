@@ -83,9 +83,9 @@ public class SecurityProperties {
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS");
         private List<String> allowedHeaders =
                 List.of("Authorization", "Content-Type", "Idempotency-Key",
-                        "correlation-id", "X-MCP-API-Key");
+                        "correlation-id", "request-id", "X-MCP-API-Key");
         private List<String> exposedHeaders =
-                List.of("correlation-id", "traceId");
+                List.of("correlation-id", "request-id", "traceId");
         private boolean allowCredentials = false;
         private long maxAge = 3600L;
 

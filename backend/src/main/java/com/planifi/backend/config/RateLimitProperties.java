@@ -15,6 +15,14 @@ public class RateLimitProperties {
     @Min(0)
     private int burst = 20;
 
+    private boolean trustForwardedFor = false;
+
+    @Min(1)
+    private long bucketTtlSeconds = 900;
+
+    @Min(1)
+    private long cleanupIntervalSeconds = 60;
+
     private List<String> sensitivePaths = List.of(
             "/api/v1/auth/**",
             "/api/v1/api-keys/**"
@@ -42,6 +50,30 @@ public class RateLimitProperties {
 
     public void setBurst(int burst) {
         this.burst = burst;
+    }
+
+    public boolean isTrustForwardedFor() {
+        return trustForwardedFor;
+    }
+
+    public void setTrustForwardedFor(boolean trustForwardedFor) {
+        this.trustForwardedFor = trustForwardedFor;
+    }
+
+    public long getBucketTtlSeconds() {
+        return bucketTtlSeconds;
+    }
+
+    public void setBucketTtlSeconds(long bucketTtlSeconds) {
+        this.bucketTtlSeconds = bucketTtlSeconds;
+    }
+
+    public long getCleanupIntervalSeconds() {
+        return cleanupIntervalSeconds;
+    }
+
+    public void setCleanupIntervalSeconds(long cleanupIntervalSeconds) {
+        this.cleanupIntervalSeconds = cleanupIntervalSeconds;
     }
 
     public List<String> getSensitivePaths() {

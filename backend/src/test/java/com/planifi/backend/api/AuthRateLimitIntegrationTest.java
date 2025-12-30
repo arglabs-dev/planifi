@@ -71,6 +71,7 @@ class AuthRateLimitIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-MCP-API-Key", "spoofed-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isTooManyRequests())

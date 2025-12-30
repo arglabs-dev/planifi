@@ -44,6 +44,9 @@ planifi:
       enabled: ${PLANIFI_SECURITY_RATE_LIMIT_ENABLED:true}
       requests-per-minute: ${PLANIFI_SECURITY_RATE_LIMIT_REQUESTS_PER_MINUTE:60}
       burst: ${PLANIFI_SECURITY_RATE_LIMIT_BURST:20}
+      trust-forwarded-for: ${PLANIFI_SECURITY_RATE_LIMIT_TRUST_FORWARDED_FOR:false}
+      bucket-ttl-seconds: ${PLANIFI_SECURITY_RATE_LIMIT_BUCKET_TTL_SECONDS:900}
+      cleanup-interval-seconds: ${PLANIFI_SECURITY_RATE_LIMIT_CLEANUP_INTERVAL_SECONDS:60}
       sensitive-paths: ${PLANIFI_SECURITY_RATE_LIMIT_SENSITIVE_PATHS:/api/v1/auth/**,/api/v1/api-keys/**}
     jwt:
       issuer: ${PLANIFI_SECURITY_JWT_ISSUER:planifi-backend}

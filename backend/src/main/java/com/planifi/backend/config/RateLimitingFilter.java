@@ -18,8 +18,11 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -32,7 +35,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final Tracer tracer;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final Map<String, BucketState> buckets = new ConcurrentHashMap<>();
+    private final AtomicLong lastCleanupEpochMillis = new AtomicLong(0);
 
     public RateLimitingFilter(SecurityProperties securityProperties,
                               ObjectMapper objectMapper,
@@ -57,8 +61,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = resolveClientKey(request);
-        Bucket bucket = buckets.computeIfAbsent(key, ignored -> newBucket(rateLimit));
+        String key = resolveClientKey(request, rateLimit);
+        cleanupExpiredBuckets(rateLimit);
+        Bucket bucket = buckets.compute(key, (ignored, existing) -> {
+            long now = System.currentTimeMillis();
+            if (existing == null || isExpired(existing, rateLimit, now)) {
+                return new BucketState(newBucket(rateLimit), now);
+            }
+            existing.touch(now);
+            return existing;
+        }).bucket();
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (probe.isConsumed()) {
             response.setHeader("X-RateLimit-Limit",
@@ -100,18 +112,63 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
-    private String resolveClientKey(HttpServletRequest request) {
+    private String resolveClientKey(HttpServletRequest request, RateLimitProperties rateLimit) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof AuthenticatedApiKey) {
+                Object credentials = authentication.getCredentials();
+                if (credentials instanceof String apiKey && StringUtils.hasText(apiKey)) {
+                    return "api-key:" + sha256(apiKey);
+                }
+            } else if (principal instanceof AuthenticatedUser user) {
+                if (user.userId() != null) {
+                    return "user:" + user.userId();
+                }
+            }
+        }
+
         String apiKeyHeader = securityProperties.getApiKeyHeader();
         String apiKey = request.getHeader(apiKeyHeader);
-        if (StringUtils.hasText(apiKey)) {
+        if (StringUtils.hasText(apiKey) && isTrustedApiKey(apiKey)) {
             return "api-key:" + sha256(apiKey);
         }
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwardedFor)) {
-            String ip = forwardedFor.split(",")[0].trim();
-            return "ip:" + ip;
+        if (rateLimit.isTrustForwardedFor()) {
+            String forwardedFor = request.getHeader("X-Forwarded-For");
+            if (StringUtils.hasText(forwardedFor)) {
+                String ip = forwardedFor.split(",")[0].trim();
+                if (StringUtils.hasText(ip)) {
+                    return "ip:" + ip;
+                }
+            }
         }
         return "ip:" + request.getRemoteAddr();
+    }
+
+    private boolean isTrustedApiKey(String apiKey) {
+        if (securityProperties.getStaticKeys() == null) {
+            return false;
+        }
+        return securityProperties.getStaticKeys().stream()
+                .anyMatch(candidate -> candidate.equals(apiKey));
+    }
+
+    private void cleanupExpiredBuckets(RateLimitProperties rateLimit) {
+        long now = System.currentTimeMillis();
+        long cleanupIntervalMillis = Duration.ofSeconds(rateLimit.getCleanupIntervalSeconds()).toMillis();
+        long lastCleanup = lastCleanupEpochMillis.get();
+        if (now - lastCleanup < cleanupIntervalMillis) {
+            return;
+        }
+        if (!lastCleanupEpochMillis.compareAndSet(lastCleanup, now)) {
+            return;
+        }
+        buckets.entrySet().removeIf(entry -> isExpired(entry.getValue(), rateLimit, now));
+    }
+
+    private boolean isExpired(BucketState state, RateLimitProperties rateLimit, long now) {
+        long ttlMillis = Duration.ofSeconds(rateLimit.getBucketTtlSeconds()).toMillis();
+        return now - state.lastAccessEpochMillis() > ttlMillis;
     }
 
     private String sha256(String value) {
@@ -129,5 +186,27 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return "unknown";
         }
         return tracer.currentSpan().context().traceId();
+    }
+
+    private static final class BucketState {
+        private final Bucket bucket;
+        private volatile long lastAccessEpochMillis;
+
+        private BucketState(Bucket bucket, long lastAccessEpochMillis) {
+            this.bucket = bucket;
+            this.lastAccessEpochMillis = lastAccessEpochMillis;
+        }
+
+        private Bucket bucket() {
+            return bucket;
+        }
+
+        private long lastAccessEpochMillis() {
+            return lastAccessEpochMillis;
+        }
+
+        private void touch(long now) {
+            this.lastAccessEpochMillis = now;
+        }
     }
 }

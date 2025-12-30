@@ -20,3 +20,7 @@ spring:
 planifi:
   security:
     enabled: false
+    jwt:
+      issuer: planifi-backend-test
+      secret: test-jwt-secret-test-jwt-secret-test-jwt-secret-123456
+      expiration-minutes: 60

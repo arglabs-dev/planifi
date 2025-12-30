@@ -21,14 +21,37 @@ management:
 planifi:
   security:
     enabled: true
-    api-key-header: X-MCP-API-Key
-    api-key-prefix: pln
-    static-keys:
-      - change-me-local
+    api-key-header: ${PLANIFI_SECURITY_API_KEY_HEADER:X-MCP-API-Key}
+    api-key-prefix: ${PLANIFI_SECURITY_API_KEY_PREFIX:pln}
+    static-keys: ${PLANIFI_SECURITY_API_KEYS:}
+    cors:
+      allowed-origins: ${PLANIFI_SECURITY_CORS_ALLOWED_ORIGINS:}
+      allowed-methods: ${PLANIFI_SECURITY_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+      allowed-headers: ${PLANIFI_SECURITY_CORS_ALLOWED_HEADERS:Authorization,Content-Type,Idempotency-Key,correlation-id,X-MCP-API-Key}
+      exposed-headers: ${PLANIFI_SECURITY_CORS_EXPOSED_HEADERS:correlation-id,traceId}
+      allow-credentials: ${PLANIFI_SECURITY_CORS_ALLOW_CREDENTIALS:false}
+      max-age: ${PLANIFI_SECURITY_CORS_MAX_AGE:3600}
+    headers:
+      enabled: ${PLANIFI_SECURITY_HEADERS_ENABLED:true}
+      hsts-enabled: ${PLANIFI_SECURITY_HEADERS_HSTS_ENABLED:true}
+      hsts-max-age-seconds: ${PLANIFI_SECURITY_HEADERS_HSTS_MAX_AGE_SECONDS:31536000}
+      hsts-include-sub-domains: ${PLANIFI_SECURITY_HEADERS_HSTS_INCLUDE_SUBDOMAINS:true}
+      hsts-preload: ${PLANIFI_SECURITY_HEADERS_HSTS_PRELOAD:true}
+      frame-options-deny: ${PLANIFI_SECURITY_HEADERS_FRAME_OPTIONS_DENY:true}
+      content-security-policy: "${PLANIFI_SECURITY_HEADERS_CSP:default-src 'none'; frame-ancestors 'none'; sandbox}"
+      referrer-policy: ${PLANIFI_SECURITY_HEADERS_REFERRER_POLICY:NO_REFERRER}
+    rate-limit:
+      enabled: ${PLANIFI_SECURITY_RATE_LIMIT_ENABLED:true}
+      requests-per-minute: ${PLANIFI_SECURITY_RATE_LIMIT_REQUESTS_PER_MINUTE:60}
+      burst: ${PLANIFI_SECURITY_RATE_LIMIT_BURST:20}
+      trust-forwarded-for: ${PLANIFI_SECURITY_RATE_LIMIT_TRUST_FORWARDED_FOR:false}
+      bucket-ttl-seconds: ${PLANIFI_SECURITY_RATE_LIMIT_BUCKET_TTL_SECONDS:900}
+      cleanup-interval-seconds: ${PLANIFI_SECURITY_RATE_LIMIT_CLEANUP_INTERVAL_SECONDS:60}
+      sensitive-paths: ${PLANIFI_SECURITY_RATE_LIMIT_SENSITIVE_PATHS:/api/v1/auth/**,/api/v1/api-keys/**}
     jwt:
-      issuer: planifi-backend
-      secret: change-me-local-jwt-secret-change-me
-      expiration-minutes: 60
+      issuer: ${PLANIFI_SECURITY_JWT_ISSUER:planifi-backend}
+      secret: ${PLANIFI_SECURITY_JWT_SECRET}
+      expiration-minutes: ${PLANIFI_SECURITY_JWT_EXPIRATION_MINUTES:60}
 springdoc:
   api-docs:
     path: /api/v1/openapi

@@ -3,8 +3,10 @@ package com.planifi.backend.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planifi.backend.application.ApiKeyService;
 import com.planifi.backend.application.JwtService;
+import com.planifi.backend.observability.RequestContextFilter;
 import io.micrometer.tracing.Tracer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -31,7 +33,8 @@ public class SecurityConfig {
                                            ApiKeyService apiKeyService,
                                            JwtService jwtService,
                                            ObjectMapper objectMapper,
-                                           Tracer tracer)
+                                           Tracer tracer,
+                                           RequestContextFilter requestContextFilter)
             throws Exception {
         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter =
                 new ApiKeyAuthenticationFilter(securityProperties, apiKeyService, objectMapper, tracer);
@@ -68,6 +71,7 @@ public class SecurityConfig {
                         registry.anyRequest().permitAll();
                     }
                 })
+                .addFilterBefore(requestContextFilter, ApiKeyAuthenticationFilter.class)
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -80,6 +84,20 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public RequestContextFilter requestContextFilter() {
+        return new RequestContextFilter();
+    }
+
+    @Bean
+    public FilterRegistrationBean<RequestContextFilter> requestContextFilterRegistration(
+            RequestContextFilter requestContextFilter) {
+        FilterRegistrationBean<RequestContextFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(requestContextFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

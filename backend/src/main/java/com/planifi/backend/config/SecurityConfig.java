@@ -6,6 +6,7 @@ import com.planifi.backend.application.JwtService;
 import com.planifi.backend.observability.RequestContextFilter;
 import io.micrometer.tracing.Tracer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -88,6 +89,15 @@ public class SecurityConfig {
     @Bean
     public RequestContextFilter requestContextFilter() {
         return new RequestContextFilter();
+    }
+
+    @Bean
+    public FilterRegistrationBean<RequestContextFilter> requestContextFilterRegistration(
+            RequestContextFilter requestContextFilter) {
+        FilterRegistrationBean<RequestContextFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(requestContextFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

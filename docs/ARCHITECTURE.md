@@ -71,7 +71,9 @@ sequenceDiagram
 ## 5. MCP Server
 
 - **Lenguaje**: Node.js 20 con TypeScript y **OpenAI MCP SDK**.
-- **Acciones**: `createExpense`, `listExpenses`, `createTag`, `auth/api-key`.
+- **Acciones**: `createExpense`, `listAccounts`, `listExpenses`, `listTags`,
+  `createTag`, `createAccount`, `disableAccount`, `listTransactions`,
+  `createTransaction`, `auth/api-key`.
 - **Autenticación**: API key dedicada (`X-MCP-API-Key`) con rotación y scopes
   mínimos; mTLS opcional hacia el backend.
 - **Validación**: esquemas Zod reutilizados desde contratos compartidos; todas
@@ -160,8 +162,9 @@ sequenceDiagram
 - **Pruebas**:
   - Unitarias: servicios y validaciones.
   - Integración: repositorios + REST con slices Spring.
-  - E2E: flujos MCP conversacionales (createExpense, listExpenses, createTag,
-    auth/api-key).
+  - E2E: flujos MCP conversacionales (createExpense, listAccounts, listExpenses,
+    listTags, createTag, createAccount, disableAccount, listTransactions,
+    createTransaction, auth/api-key).
 
 ## 10. Operación y observabilidad
 

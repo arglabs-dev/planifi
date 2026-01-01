@@ -18,8 +18,9 @@
    `http://localhost:8080/swagger-ui.html`.
 3. Usa la API key `dev-default-api-key` (cabecera `X-MCP-API-Key`) para llamadas a
    `/api/v1/*`.
-4. El contrato OpenAPI vive en `docs/openapi/planifi-api-v1.yaml` y los
-   estándares de API en `docs/api-standards.md`.
+4. El contrato OpenAPI vive en `docs/openapi/planifi-api-v1.yaml`, los
+   estándares de API en `docs/api-standards.md` y el contrato MCP v1 en
+   `docs/mcp-actions-v1.md`.
 
 ## Imagen Docker del backend
 
